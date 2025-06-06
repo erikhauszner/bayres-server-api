@@ -38,7 +38,7 @@ forwardAuth:
     enabled: true
     allowOrigin: https://panel.bayreshub.com
     allowMethods: GET,POST,PUT,DELETE,OPTIONS
-    allowHeaders: Content-Type,Authorization,X-API-Key
+    allowHeaders: Content-Type,Authorization
     allowCredentials: true
 ```
 

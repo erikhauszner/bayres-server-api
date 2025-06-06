@@ -13,7 +13,7 @@ const io = new SocketIOServer(server, {
     origin: ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
     methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
+    allowedHeaders: ['Content-Type', 'Authorization']
   },
   path: '/socket.io',
   serveClient: false,
