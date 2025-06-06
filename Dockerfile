@@ -35,6 +35,7 @@ COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
 RUN echo "Verificando contenido del directorio dist en la etapa de producción:"
 RUN find dist -type f | sort
+RUN ls -la dist
 
 # Crear y configurar directorio de uploads
 RUN mkdir -p uploads

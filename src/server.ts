@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // Configurar Socket.IO con configuración simplificada
 const io = new SocketIOServer(server, {
   cors: {
-    origin: ['http://147.93.36.93:3001', 'http://panel.bayreshub.com', 'https://panel.bayreshub.com', 'https://147.93.36.93:3001'],
+    origin: ['http://panel.bayreshub.com', 'https://panel.bayreshub.com'],
     methods: ["GET", "POST"],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
@@ -75,7 +75,7 @@ export { io };
 // Iniciar el servidor HTTP
 server.listen(PORT, () => {
   console.log(`Servidor HTTP ejecutándose en el puerto ${PORT}`);
-  console.log(`Socket.IO esperando conexiones en ws://147.93.36.93:${PORT}/socket.io/`);
+  console.log(`Socket.IO esperando conexiones en ws://api.bayreshub.com/socket.io/`);
 });
 
 // Manejar errores del servidor
