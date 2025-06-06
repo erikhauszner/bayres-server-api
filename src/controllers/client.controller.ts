@@ -144,6 +144,13 @@ export const convertLeadToClient: RequestHandler = async (req, res, next): Promi
     });
 
     const { type } = req.body;
+    
+    // Verificar que el tipo es válido
+    if (!type || (type !== 'personal' && type !== 'business')) {
+      res.status(400).json({ message: 'Tipo de cliente no válido. Debe ser "personal" o "business"' });
+      return;
+    }
+    
     const lead = await Lead.findById(req.params.id);
 
     if (!lead) {
@@ -169,15 +176,23 @@ export const convertLeadToClient: RequestHandler = async (req, res, next): Promi
       return;
     }
 
+    // Verificar que el lead tiene email, que es requerido para Client
+    if (!lead.email) {
+      console.log('[convertLeadToClient] El lead no tiene email, que es requerido para cliente');
+      res.status(400).json({ message: 'El lead debe tener un email para convertirlo a cliente' });
+      return;
+    }
+
     console.log('[convertLeadToClient] Empleado identificado:', employeeId);
 
+    // Crear el objeto clientData con valores por defecto para evitar undefined
     const clientData: Partial<IClient> = {
       name: `${lead.firstName} ${lead.lastName}`.trim(),
       email: lead.email,
       phone: lead.phone || "",
       type: type,
-      businessName: type === 'business' ? lead.company || "" : "",
-      industry: type === 'business' ? lead.industry || "" : "",
+      businessName: type === 'business' ? (lead.company || "") : "",
+      industry: type === 'business' ? (lead.industry || "") : "",
       website: lead.website || "",
       instagram: lead.instagram || "",
       twitter: lead.twitter || "",
