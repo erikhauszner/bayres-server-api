@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 
-const envContent = `MONGODB_URI=mongodb://localhost:27017/bayres-panel
+const envContent = `MONGODB_URI=mongodb://root:wNbSKJw096Jnz2tSioZdr8wOztNOFNU1i14LTC5zinXzTYJdjSnamupFikv8nPVG@mongodb-database-gskg08cc0w8ko48os4cswoss:27017/bayres-panel?directConnection=true
 JWT_SECRET=bayres-panel-secret-key-2023
 NODE_ENV=development
 PORT=3000

@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/bayres}
+      - MONGODB_URI=${MONGODB_URI:-mongodb://root:wNbSKJw096Jnz2tSioZdr8wOztNOFNU1i14LTC5zinXzTYJdjSnamupFikv8nPVG@mongodb-database-gskg08cc0w8ko48os4cswoss:27017/bayres-panel?directConnection=true}
       - JWT_SECRET=${JWT_SECRET:-secretkeyfordev}
       - PORT=3000
     volumes:

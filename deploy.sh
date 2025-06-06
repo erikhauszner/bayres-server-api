@@ -3,7 +3,7 @@
 # Script para construir y desplegar el backend con Docker
 
 # Configuración de variables de entorno (personalizar según entorno)
-export MONGODB_URI=mongodb://root:wNbSKJw096Jnz2tSioZdr8wOztNOFNU1i14LTC5zinXzTYJdjSnamupFikv8nPVG@gskg08cc0w8ko48os4cswoss:27017/?directConnection=true/bayres-panel
+export MONGODB_URI=mongodb://root:wNbSKJw096Jnz2tSioZdr8wOztNOFNU1i14LTC5zinXzTYJdjSnamupFikv8nPVG@mongodb-database-gskg08cc0w8ko48os4cswoss:27017/bayres-panel?directConnection=true
 export JWT_SECRET=miclavesecretsegura
 
 # Verificar si MongoDB está en ejecución
