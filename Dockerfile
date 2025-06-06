@@ -52,5 +52,5 @@ USER appuser
 # Exponer puerto
 EXPOSE 3000
 
-# Comando para iniciar la aplicación
-CMD ["node", "dist/index.js"] 
+# Comando para iniciar la aplicación - actualizado para usar la ruta correcta
+CMD ["node", "dist/src/index.js"] 
