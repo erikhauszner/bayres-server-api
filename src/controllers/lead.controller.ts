@@ -906,6 +906,22 @@ export class LeadController {
         return res.status(400).json({ message: 'La etapa es requerida' });
       }
       
+      // Verificar permisos manualmente (como respaldo al middleware)
+      const employeePermissions = req.employee?.permissions || [];
+      console.log('Verificando permisos en controller updateLeadStage:', employeePermissions);
+      
+      // Verificar si tiene alguno de los dos permisos necesarios
+      const hasPermission = employeePermissions.includes('leads:edit_stage') || 
+                           employeePermissions.includes('leads:stage_edit_appsetters');
+      
+      if (!hasPermission) {
+        return res.status(403).json({ 
+          message: 'No autorizado', 
+          requiredPermissions: ['leads:edit_stage', 'leads:stage_edit_appsetters'],
+          employeePermissions
+        });
+      }
+      
       // Verificar si la etapa existe en las categorías de etapas
       const LeadStageCategory = require('../models/LeadStageCategory').default;
       const stageExists = await LeadStageCategory.findOne({ name: stage, active: true });

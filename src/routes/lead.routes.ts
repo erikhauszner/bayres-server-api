@@ -1,5 +1,5 @@
 import { Router, RequestHandler } from 'express';
-import { authenticateToken, checkPermissions } from '../middleware/auth.middleware';
+import { authenticateToken, checkPermissions, checkAnyPermissions } from '../middleware/auth.middleware';
 import { LeadController } from '../controllers/lead.controller';
 import { upload } from '../middleware/upload.middleware';
 
@@ -36,49 +36,49 @@ router.delete('/:id',
 
 // Rutas para interacciones
 router.post('/:id/interactions', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkAnyPermissions(['leads:new_activity', 'activities:create']) as RequestHandler, 
   LeadController.addInteraction as RequestHandler
 );
 
 router.put('/:id/interactions/:interactionId', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkAnyPermissions(['leads:edit_activity', 'activities:update']) as RequestHandler, 
   LeadController.updateInteraction as RequestHandler
 );
 
 router.delete('/:id/interactions/:interactionId', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:delete_activity']) as RequestHandler, 
   LeadController.deleteInteraction as RequestHandler
 );
 
 // Rutas para tareas
 router.post('/:id/tasks', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:new_task']) as RequestHandler, 
   LeadController.addTask as RequestHandler
 );
 
 router.put('/:id/tasks/:taskId', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:edit_task']) as RequestHandler, 
   LeadController.updateTask as RequestHandler
 );
 
 router.delete('/:id/tasks/:taskId', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:delete_task']) as RequestHandler, 
   LeadController.deleteTask as RequestHandler
 );
 
 // Rutas para notas
 router.post('/:id/notes', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:new_note']) as RequestHandler, 
   LeadController.addNote as RequestHandler
 );
 
 router.put('/:id/notes', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:edit_note']) as RequestHandler, 
   LeadController.updateNote as RequestHandler
 );
 
 router.delete('/:id/notes', 
-  checkPermissions(['leads:update']) as RequestHandler, 
+  checkPermissions(['leads:delete_note']) as RequestHandler, 
   LeadController.deleteNote as RequestHandler
 );
 
@@ -120,7 +120,7 @@ router.put('/:id/reject',
 );
 
 router.put('/:id/stage', 
-  checkPermissions(['leads:edit_stage']) as RequestHandler, 
+  checkAnyPermissions(['leads:edit_stage', 'leads:stage_edit_appsetters']) as RequestHandler, 
   LeadController.updateLeadStage as RequestHandler
 );
 

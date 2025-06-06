@@ -175,6 +175,7 @@ export const authenticateToken: RequestHandler = async (req, res, next) => {
   }
 };
 
+// Middleware que verifica que el usuario tenga TODOS los permisos requeridos
 export const checkPermissions = (requiredPermissions: string[]): RequestHandler => {
   return (req, res, next) => {
     if (!req.employee) {
@@ -195,6 +196,41 @@ export const checkPermissions = (requiredPermissions: string[]): RequestHandler 
     );
 
     if (!hasPermission) {
+      res.status(403).json({ 
+        message: 'No autorizado', 
+        requiredPermissions,
+        employeePermissions
+      });
+      return;
+    }
+
+    next();
+  };
+}; 
+
+// Middleware que verifica que el usuario tenga AL MENOS UNO de los permisos requeridos
+export const checkAnyPermissions = (requiredPermissions: string[]): RequestHandler => {
+  return (req, res, next) => {
+    if (!req.employee) {
+      res.status(401).json({ message: 'No autenticado' });
+      return;
+    }
+
+    // Acceder a los permisos del empleado que hemos asignado previamente
+    const employeePermissions = (req.employee as any).permissions || [];
+    
+    console.log('Verificando permisos (AL MENOS UNO):');
+    console.log('Permisos requeridos (cualquiera):', requiredPermissions);
+    console.log('Permisos del empleado:', employeePermissions);
+
+    // Verificar si el empleado tiene al menos uno de los permisos requeridos
+    const hasAnyPermission = requiredPermissions.some(permission => 
+      employeePermissions.includes(permission)
+    );
+    
+    console.log('¿Tiene al menos uno de los permisos?', hasAnyPermission);
+
+    if (!hasAnyPermission) {
       res.status(403).json({ 
         message: 'No autorizado', 
         requiredPermissions,
