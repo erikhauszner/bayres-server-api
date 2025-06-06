@@ -13,7 +13,7 @@ const ROLE_ID = '680416e8c7091d8f509ebb0f';
 async function assignSidebarPermissions() {
   try {
     console.log('Conectando a MongoDB...');
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/?directConnection=true';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/bayres-panel?directConnection=true';
     await mongoose.connect(mongoUri);
     console.log('Conexión a MongoDB establecida correctamente');
     
