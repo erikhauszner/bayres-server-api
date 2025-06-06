@@ -5,7 +5,7 @@ const http = require('http');
 
 // Hacer una petición GET a la API
 const options = {
-  hostname: '147.93.36.93',
+  hostname: 'http://147.93.36.93',
   port: 3000,
   path: '/api/health',
   method: 'GET'
