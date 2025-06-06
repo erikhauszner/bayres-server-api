@@ -39,8 +39,8 @@ RUN find dist -type f | sort
 RUN ls -la dist
 
 # Crear y configurar directorio de uploads
-RUN mkdir -p uploads
-RUN chown -R appuser:nodejs uploads
+RUN mkdir -p dist/uploads
+RUN chown -R appuser:nodejs dist/uploads
 
 # Instalar solo dependencias de producción
 RUN npm ci --only=production

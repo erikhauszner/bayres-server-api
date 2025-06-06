@@ -4,6 +4,7 @@ import path from 'path';
 import http from 'http';
 import app from './app';
 import initializeRoles from './scripts/initializeRoles';
+import { Server as SocketIOServer } from 'socket.io';
 
 // Configuración de variables de entorno
 // Primero intentamos cargar desde .env.local (desarrollo local)
@@ -27,28 +28,9 @@ if (missingVars.length > 0) {
 }
 
 const MONGODB_URI = process.env.MONGODB_URI!;
-console.log(`Conectando a MongoDB: ${MONGODB_URI.includes('@') ? MONGODB_URI.split('@')[0].substring(0, 15) + '...' : MONGODB_URI.substring(0, 25) + '...'}`);
+const PORT = parseInt(process.env.PORT!) || 3000;
 
-// Función para iniciar el servidor HTTP en un puerto específico
-const startServer = (port: number, server: http.Server) => {
-  return new Promise<void>((resolve, reject) => {
-    server.listen(port)
-      .on('listening', () => {
-        console.log(`Servidor corriendo en puerto ${port}`);
-        resolve();
-      })
-      .on('error', (err: NodeJS.ErrnoException) => {
-        // Si el puerto está en uso, rechazar con el error
-        if (err.code === 'EADDRINUSE') {
-          console.warn(`⚠️ El puerto ${port} ya está en uso.`);
-          reject(err);
-        } else {
-          console.error('Error al iniciar el servidor:', err);
-          reject(err);
-        }
-      });
-  });
-};
+console.log(`Conectando a MongoDB: ${MONGODB_URI.includes('@') ? MONGODB_URI.split('@')[0].substring(0, 15) + '...' : MONGODB_URI.substring(0, 25) + '...'}`);
 
 // Inicializar la base de datos
 mongoose.connect(MONGODB_URI)
@@ -60,77 +42,87 @@ mongoose.connect(MONGODB_URI)
     // Crear servidor HTTP
     const server = http.createServer(app);
 
-    // Configurar Socket.IO
-    const io = require('socket.io')(server, {
+    // Configurar Socket.IO con configuración simplificada
+    const io = new SocketIOServer(server, {
       cors: {
-        origin: '*',
-        methods: ['GET', 'POST']
-      }
+        origin: ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
+        methods: ["GET", "POST", "OPTIONS"],
+        credentials: true,
+        allowedHeaders: ['Content-Type', 'Authorization']
+      },
+      path: '/socket.io',
+      serveClient: false,
+      transports: ['websocket', 'polling']
     });
 
-    // Manejador de conexión Socket.IO
-    io.on('connection', (socket: any) => {
-      console.log('Un cliente se ha conectado a Socket.IO');
+    // Almacenar las conexiones de socket por ID de empleado
+    const employeeSockets = new Map<string, string[]>();
+
+    // Manejar conexiones de socket en el namespace raíz
+    io.on('connection', (socket) => {
+      console.log('Nuevo cliente conectado:', socket.id);
       
-      // Unirse a una sala basada en empleado ID cuando el cliente lo solicite
-      socket.on('join', (roomName: string) => {
-        socket.join(roomName);
-        console.log(`Cliente unido a la sala: ${roomName}`);
+      // Autenticar al usuario y unirse a su sala personal
+      socket.on('authenticate', (employeeId: string) => {
+        if (!employeeId) return;
+        
+        console.log(`Empleado ${employeeId} autenticado en socket ${socket.id}`);
+        
+        // Unir al socket a la sala del empleado
+        socket.join(`employee:${employeeId}`);
+        
+        // Registrar el socket para este empleado
+        if (!employeeSockets.has(employeeId)) {
+          employeeSockets.set(employeeId, []);
+        }
+        employeeSockets.get(employeeId)?.push(socket.id);
+        
+        // Informar al cliente que la autenticación fue exitosa
+        socket.emit('authenticated', { success: true });
       });
       
-      // Manejar desconexión
+      // Manejar desconexiones
       socket.on('disconnect', () => {
-        console.log('Un cliente se ha desconectado de Socket.IO');
+        console.log('Cliente desconectado:', socket.id);
+        
+        // Eliminar el socket de employeeSockets
+        for (const [employeeId, sockets] of employeeSockets.entries()) {
+          const index = sockets.indexOf(socket.id);
+          if (index !== -1) {
+            sockets.splice(index, 1);
+            if (sockets.length === 0) {
+              employeeSockets.delete(employeeId);
+            }
+            break;
+          }
+        }
+      });
+
+      // Manejar errores en el socket
+      socket.on('error', (error) => {
+        console.error('Error en socket:', error);
       });
     });
 
     // Hacer disponible io para otros módulos
     app.set('io', io);
+    
+    // Exportar io para usarlo en otras partes de la aplicación
+    // Iniciar el servidor HTTP
+    server.listen(PORT, () => {
+      console.log(`Servidor HTTP ejecutándose en el puerto ${PORT}`);
+      console.log(`Socket.IO esperando conexiones en ws://api.bayreshub.com/socket.io/`);
+    });
 
-    // Iniciar servidor con manejo de errores
-    let PORT = parseInt(process.env.PORT!);
-    const originalPort = PORT;
-    let maxRetries = 3;
-    let retries = 0;
-
-    // Intento inicial con el puerto configurado
-    try {
-      await startServer(PORT, server);
-      const serverUrl = `http://localhost:${PORT}`;
-      console.log(`Servidor API disponible en: ${serverUrl}`);
-      console.log(`Socket.IO esperando conexiones en ws://${process.env.HOST || 'localhost'}:${PORT}/socket.io/`);
-    } catch (err) {
-      // Si el puerto original está ocupado, intentar con puertos alternativos
-      if ((err as NodeJS.ErrnoException).code === 'EADDRINUSE') {
-        let serverStarted = false;
-        
-        while (retries < maxRetries && !serverStarted) {
-          retries++;
-          PORT = originalPort + retries; // Intentar con puerto + 1, puerto + 2, etc.
-          
-          try {
-            console.log(`Intentando con puerto alternativo: ${PORT}`);
-            await startServer(PORT, server);
-            serverStarted = true;
-            const serverUrl = `http://localhost:${PORT}`;
-            console.log(`Servidor API disponible en: ${serverUrl}`);
-            console.log(`Socket.IO esperando conexiones en ws://${process.env.HOST || 'localhost'}:${PORT}/socket.io/`);
-          } catch (retryErr) {
-            console.warn(`No se pudo iniciar en el puerto ${PORT}, intentando otro...`);
-          }
-        }
-        
-        if (!serverStarted) {
-          console.error(`No se pudo iniciar el servidor después de ${maxRetries} intentos.`);
-          console.error('Por favor, libere uno de estos puertos o configure un puerto diferente en las variables de entorno.');
-          process.exit(1);
-        }
-      } else {
-        // Error diferente al de puerto ocupado
-        console.error('Error al iniciar el servidor:', err);
+    // Manejar errores del servidor
+    server.on('error', (error: any) => {
+      if (error.code === 'EADDRINUSE') {
+        console.error(`Puerto ${PORT} está en uso. Intenta ejecutar el servidor con otro puerto.`);
         process.exit(1);
+      } else {
+        console.error('Error en el servidor HTTP:', error);
       }
-    }
+    });
   })
   .catch((error) => {
     console.error('Error al conectar a MongoDB:', error);

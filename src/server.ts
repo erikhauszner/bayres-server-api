@@ -1,7 +1,15 @@
+// ARCHIVO OBSOLETO - NO SE USA MÁS
+// Todo el código ha sido movido a index.ts para evitar iniciar servidores duplicados
+
+// Mantenido solo por referencias históricas
 import http from 'http';
 import app from './app';
 import { Server as SocketIOServer } from 'socket.io';
 
+// NO SE USA - Todo el código ha sido movido a index.ts
+// Mantener esto solo para referencia
+
+/*
 const PORT = process.env.PORT || 3000;
 
 // Crear servidor HTTP
@@ -86,4 +94,8 @@ server.on('error', (error: any) => {
   } else {
     console.error('Error en el servidor HTTP:', error);
   }
-}); 
+});
+*/
+
+// Exportamos un objeto vacío para mantener compatibilidad
+export const io = {} as any; 
