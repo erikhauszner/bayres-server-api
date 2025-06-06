@@ -6,7 +6,7 @@ import initializeRoles from './scripts/initializeRoles';
 // Cargar variables de entorno
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/bayres-panelbayres-panel?directConnection=true';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/?directConnection=true';
 
 // Inicializar la base de datos
 mongoose.connect(MONGODB_URI)
