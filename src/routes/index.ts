@@ -65,9 +65,9 @@ router.use('/app-config', appConfigRoutes);
 router.use('/api-keys', apiKeyRoutes);
 
 // Rutas de categorías de leads
-router.use('/api/leads/categories', leadCategoryRoutes);
+router.use('/leads/categories', leadCategoryRoutes);
 
 // Rutas de departamentos
-router.use('/api/departments', departmentRoutes);
+router.use('/departments', departmentRoutes);
 
 export default router; 

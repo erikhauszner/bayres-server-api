@@ -73,8 +73,8 @@ app.get('/health', (req, res) => {
 });
 
 // Endpoint de health check en /api/health con manejo explícito de CORS
-app.options('/api/health', corsMiddleware);
-app.get('/api/health', (req, res) => {
+app.options('/health', corsMiddleware);
+app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'API funcionando correctamente',
@@ -120,7 +120,7 @@ notificationRouter.post('/', (req, res) => {
 });
 
 // Registrar el router de notificaciones protegidas por JWT
-app.use('/api/notifications', notificationRouter);
+app.use('/notifications', notificationRouter);
 
 // Rutas accesibles a través de API keys
 const apiAccessRouter = Router();
@@ -181,7 +181,7 @@ apiAccessRouter.get('/leads/:id',
 );
 
 // Registrar el router de acceso mediante API key
-app.use('/api/external', apiAccessRouter);
+app.use('/external', apiAccessRouter);
 
 // Manejador de errores
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

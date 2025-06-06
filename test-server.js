@@ -7,7 +7,7 @@ const http = require('http');
 const options = {
   hostname: 'https://api.bayreshub.com/api',
   port: 3000,
-  path: '/api/health',
+  path: '/health',
   method: 'GET'
 };
 
