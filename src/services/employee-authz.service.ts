@@ -20,7 +20,7 @@ declare global {
 }
 
 export class AuthzService {
-  private static readonly JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+  private static readonly JWT_SECRET = process.env.JWT_SECRET || 'ee5392100b78a16228abdf0bfc473cb987322f326a1e18f00f9be83704e19dc1';
 
   // Middleware de autenticación
   static async authenticate(req: Request, res: Response, next: NextFunction) {
@@ -32,7 +32,7 @@ export class AuthzService {
         return res.status(401).json({ message: 'Token no proporcionado' });
       }
 
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as JwtPayload;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'ee5392100b78a16228abdf0bfc473cb987322f326a1e18f00f9be83704e19dc1') as JwtPayload;
       
       // Buscar el empleado completo en la base de datos
       const employee = await Employee.findById(new Types.ObjectId(decoded.userId));

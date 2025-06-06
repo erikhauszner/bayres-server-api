@@ -4,7 +4,7 @@
 
 # Configuración de variables de entorno (personalizar según entorno)
 export MONGODB_URI=mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/?directConnection=true
-export JWT_SECRET=miclavesecretsegura
+export JWT_SECRET=ee5392100b78a16228abdf0bfc473cb987322f326a1e18f00f9be83704e19dc1
 
 # Verificar si MongoDB está en ejecución
 echo "Verificando MongoDB..."
