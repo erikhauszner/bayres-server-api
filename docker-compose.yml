@@ -1,0 +1,41 @@
+version: '3'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongodb:27017/bayres}
+      - JWT_SECRET=${JWT_SECRET:-secretkeyfordev}
+      - PORT=3000
+    volumes:
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    depends_on:
+      - mongodb
+    networks:
+      - bayres-network
+
+  mongodb:
+    image: mongo:latest
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+    environment:
+      - MONGO_INITDB_DATABASE=bayres
+    restart: unless-stopped
+    networks:
+      - bayres-network
+
+volumes:
+  mongodb_data:
+    driver: local
+
+networks:
+  bayres-network:
+    driver: bridge 

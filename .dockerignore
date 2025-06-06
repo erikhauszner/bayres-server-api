@@ -1,0 +1,50 @@
+# Dependencias
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Archivos de compilación
+dist
+build
+*.tsbuildinfo
+
+# Archivos del sistema operativo
+.DS_Store
+Thumbs.db
+
+# Archivos de entorno (por seguridad)
+.env
+.env.*
+!.env.example
+
+# Archivos de Git
+.git
+.gitignore
+.github
+
+# Archivos del editor
+.idea
+.vscode
+*.swp
+*.swo
+
+# Archivos de prueba
+coverage
+.nyc_output
+*.spec.ts
+*.test.ts
+
+# Documentación
+README.md
+docs
+
+# Configuración Docker
+.dockerignore
+docker-compose.yml
+
+# Otros archivos innecesarios
+*.log
+logs
+temp
+tmp 
