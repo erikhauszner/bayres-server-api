@@ -22,5 +22,5 @@ docker-compose build
 echo "Iniciando los contenedores..."
 docker-compose up -d
 
-echo "Despliegue completado. El backend está disponible en https://api.bayreshub.com"
+echo "Despliegue completado. El backend está disponible en https://api.bayreshub.com/api"
 echo "Base de datos MongoDB disponible en localhost:27017" 

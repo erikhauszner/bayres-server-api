@@ -5,7 +5,7 @@ const http = require('http');
 
 // Hacer una petición GET a la API
 const options = {
-  hostname: 'https://api.bayreshub.com',
+  hostname: 'https://api.bayreshub.com/api',
   port: 3000,
   path: '/api/health',
   method: 'GET'
