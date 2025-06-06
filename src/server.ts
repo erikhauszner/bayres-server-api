@@ -10,7 +10,7 @@ const server = http.createServer(app);
 // Configurar Socket.IO con configuración simplificada
 const io = new SocketIOServer(server, {
   cors: {
-    origin: ['http://api.bayreshub.com', 'https://api.bayreshub.com', 'https://panel.bayreshub.com', 'https://https://147.93.36.93:3001', 'http://https://147.93.36.93:3000', 'https://n8n.bayreshub.com', 'http://n8n.bayreshub.com'],
+    origin: ['http://api.bayreshub.com', 'http://panel.bayreshub.com', 'http://147.93.36.93:3001', 'http://147.93.36.93:3000', 'http://n8n.bayreshub.com'],
     methods: ["GET", "POST"],
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization']
