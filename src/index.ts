@@ -4,7 +4,7 @@ import './server'; // Importar server.ts en lugar de app.ts
 // Cargar variables de entorno
 dotenv.config();
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/bayres-panel';
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://147.93.36.93:27017/bayres-panel';
 
 // Inicializar la base de datos
 mongoose.connect(MONGODB_URI)

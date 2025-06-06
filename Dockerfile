@@ -16,13 +16,14 @@ COPY . .
 
 # Compilar TypeScript
 RUN npm run build
+RUN ls -la dist/
 
 # Etapa de producción
 FROM node:18-alpine AS runner
 
 WORKDIR /app
 
-ENV NODE_ENV production
+ENV NODE_ENV=production
 
 # Crear un usuario no-root para producción
 RUN addgroup --system --gid 1001 nodejs
@@ -31,6 +32,7 @@ RUN adduser --system --uid 1001 appuser
 # Copiar archivos necesarios desde la etapa de construcción
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
+RUN ls -la dist/
 
 # Crear y configurar directorio de uploads
 RUN mkdir -p uploads
@@ -49,4 +51,4 @@ USER appuser
 EXPOSE 3000
 
 # Comando para iniciar la aplicación
-CMD ["node", "./dist/index.js"] 
+CMD ["node", "dist/index.js"] 

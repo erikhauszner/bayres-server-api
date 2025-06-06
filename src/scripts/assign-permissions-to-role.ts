@@ -13,7 +13,7 @@ const ROLE_ID = '680416e8c7091d8f509ebb0f';
 async function main() {
   try {
     console.log('Conectando a MongoDB...');
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/bayres-panel';
+    const mongoUri = process.env.MONGODB_URI || 'mongodb://147.93.36.93:27017/bayres-panel';
     await mongoose.connect(mongoUri);
     console.log('Conexión a MongoDB establecida correctamente');
     
