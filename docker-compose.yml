@@ -27,7 +27,7 @@ services:
     volumes:
       - mongodb_data:/data/db
     environment:
-      - MONGO_INITDB_DATABASE=bayres
+      - MONGO_INITDB_DATABASE=bayres-panel
     restart: unless-stopped
     networks:
       - bayres-network
