@@ -17,8 +17,8 @@ const app = express();
 // Middlewares
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
-    ? process.env.CLIENT_URL 
-    : ['https://147.93.36.93:3001', 'http://147.93.36.93:3001'],
+    ? ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com']
+    : ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
