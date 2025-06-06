@@ -16,7 +16,8 @@ COPY . .
 
 # Compilar TypeScript
 RUN npm run build
-RUN ls -la dist/
+RUN echo "Contenido del directorio dist:"
+RUN find dist -type f | sort
 
 # Etapa de producción
 FROM node:18-alpine AS runner
@@ -32,7 +33,8 @@ RUN adduser --system --uid 1001 appuser
 # Copiar archivos necesarios desde la etapa de construcción
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/dist ./dist
-RUN ls -la dist/
+RUN echo "Verificando contenido del directorio dist en la etapa de producción:"
+RUN find dist -type f | sort
 
 # Crear y configurar directorio de uploads
 RUN mkdir -p uploads
