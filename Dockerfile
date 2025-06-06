@@ -53,5 +53,5 @@ USER appuser
 # Exponer puerto
 EXPOSE 3000
 
-# Comando para iniciar la aplicación con mejor manejo de errores
-CMD ["sh", "-c", "echo 'Iniciando servidor desde /app/dist/src/index.js' && ls -la dist/src && node dist/src/index.js || echo 'Error al iniciar el servidor'"] 
+# Comando para iniciar la aplicación con la ruta correcta
+CMD ["node", "dist/src/index.js"] 
