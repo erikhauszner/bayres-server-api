@@ -10,10 +10,10 @@ const server = http.createServer(app);
 // Configurar Socket.IO con configuración simplificada
 const io = new SocketIOServer(server, {
   cors: {
-    origin: ['https://api.bayreshub.com', 'https://panel.bayreshub.com', 'https://n8n.bayreshub.com'],
-    methods: ["GET", "POST"],
+    origin: ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
+    methods: ["GET", "POST", "OPTIONS"],
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
   },
   path: '/socket.io',
   serveClient: false,

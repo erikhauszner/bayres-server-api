@@ -14,15 +14,18 @@ import fs from 'fs';
 
 const app = express();
 
-// Middlewares
-app.use(cors({
+// Crear middleware CORS específico para rutas públicas
+const corsMiddleware = cors({
   origin: process.env.NODE_ENV === 'production' 
     ? ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com']
     : ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key']
-}));
+});
+
+// Middlewares
+app.use(corsMiddleware);
 app.use(express.json());
 app.use(morgan('dev'));
 
@@ -63,12 +66,14 @@ app.use((req, res, next) => {
   next();
 });
 
-// Ruta de prueba general
+// Ruta de prueba general con manejo explícito de CORS
+app.options('/health', corsMiddleware);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Servidor funcionando correctamente' });
 });
 
-// Endpoint de health check en /api/health
+// Endpoint de health check en /api/health con manejo explícito de CORS
+app.options('/api/health', corsMiddleware);
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'ok', 
