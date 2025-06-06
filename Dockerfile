@@ -25,6 +25,7 @@ FROM node:18-alpine AS runner
 WORKDIR /app
 
 ENV NODE_ENV=production
+ENV PORT=3000
 
 # Crear un usuario no-root para producción
 RUN addgroup --system --gid 1001 nodejs
