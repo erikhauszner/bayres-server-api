@@ -19,18 +19,30 @@ export class PermissionService {
    */
   static async getEmployeePermissions(employeeId: string): Promise<string[]> {
     try {
+      console.log('🔍 PermissionService - Obteniendo permisos para empleado:', employeeId);
+      
       const employee = await Employee.findById(employeeId);
       if (!employee) {
+        console.log('❌ PermissionService - Empleado no encontrado:', employeeId);
         throw new PermissionError(`Empleado ${employeeId} no encontrado`, 'EMPLOYEE_NOT_FOUND');
       }
 
+      console.log('✅ PermissionService - Empleado encontrado:', employee.email);
+
       if (!employee.role) {
-        throw new PermissionError(`Empleado ${employeeId} no tiene rol asignado`, 'NO_ROLE_ASSIGNED');
+        console.log('⚠️ PermissionService - Empleado sin rol asignado:', employeeId);
+        // Retornar array vacío en lugar de lanzar error
+        return [];
       }
 
+      console.log('🔍 PermissionService - Obteniendo permisos del rol:', employee.role);
       const roleId = employee.role;
-      return this.getRolePermissions(roleId);
+      const permissions = await this.getRolePermissions(roleId);
+      
+      console.log('✅ PermissionService - Permisos obtenidos:', permissions.length);
+      return permissions;
     } catch (error) {
+      console.error('❌ PermissionService - Error al obtener permisos:', error);
       if (error instanceof PermissionError) {
         throw error;
       }
@@ -46,30 +58,45 @@ export class PermissionService {
    */
   static async getRolePermissions(roleId: mongoose.Types.ObjectId | string): Promise<string[]> {
     try {
+      console.log('🔍 PermissionService - Buscando rol:', roleId);
+      
       const role = await Role.findById(roleId).populate('permissions');
       
       if (!role) {
-        throw new PermissionError(`Rol ${roleId} no encontrado`, 'ROLE_NOT_FOUND');
+        console.log('❌ PermissionService - Rol no encontrado:', roleId);
+        // Retornar array vacío en lugar de lanzar error
+        return [];
       }
 
+      console.log('✅ PermissionService - Rol encontrado:', role.name);
+
       if (!role.isActive) {
-        throw new PermissionError(`Rol ${roleId} inactivo`, 'INACTIVE_ROLE');
+        console.log('⚠️ PermissionService - Rol inactivo:', role.name);
+        // Retornar array vacío en lugar de lanzar error
+        return [];
       }
 
       if (!role.permissions || !Array.isArray(role.permissions)) {
-        throw new PermissionError(`Rol ${roleId} no tiene permisos definidos correctamente`, 'INVALID_PERMISSIONS');
+        console.log('⚠️ PermissionService - Rol sin permisos válidos:', role.name);
+        // Retornar array vacío en lugar de lanzar error
+        return [];
       }
 
       const permissionStrings = role.permissions
-        .filter((permission: any) => permission.isActive)
-        .map((permission: any) => `${permission.module}:${permission.action}`);
+        .filter((permission: any) => permission && permission.isActive !== false)
+        .map((permission: any) => `${permission.module}:${permission.action}`)
+        .filter(Boolean); // Filtrar valores falsy
 
+      console.log('✅ PermissionService - Permisos del rol procesados:', permissionStrings.length);
       return permissionStrings;
     } catch (error) {
+      console.error('❌ PermissionService - Error al obtener permisos del rol:', error);
       if (error instanceof PermissionError) {
         throw error;
       }
-      throw new PermissionError(`Error al obtener permisos del rol: ${(error as Error).message}`, 'PERMISSION_ERROR');
+      // En lugar de lanzar error, retornar array vacío para evitar fallos en cascade
+      console.log('⚠️ PermissionService - Retornando array vacío debido a error');
+      return [];
     }
   }
 

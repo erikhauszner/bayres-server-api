@@ -157,19 +157,35 @@ export class AuthController {
    */
   static async getCurrentEmployee(req: Request, res: Response) {
     try {
+      console.log('🔍 getCurrentEmployee - Iniciando');
+      
       if (!req.employee) {
+        console.log('❌ getCurrentEmployee - No hay empleado en el request');
         return res.status(401).json({ message: 'No autenticado' });
       }
+
+      console.log('🔍 getCurrentEmployee - Employee ID:', req.employee._id);
 
       const employee = await Employee.findById(req.employee._id)
         .select('-password')
         .populate('role');
 
       if (!employee) {
+        console.log('❌ getCurrentEmployee - Empleado no encontrado en DB');
         return res.status(404).json({ message: 'Empleado no encontrado' });
       }
 
-      const permissions = await AuthService.getEmployeePermissions((employee._id as any).toString());
+      console.log('✅ getCurrentEmployee - Empleado encontrado:', employee.email);
+
+      let permissions: string[] = [];
+      try {
+        permissions = await AuthService.getEmployeePermissions((employee._id as any).toString());
+        console.log('✅ getCurrentEmployee - Permisos obtenidos:', permissions.length);
+      } catch (permissionError) {
+        console.error('⚠️ getCurrentEmployee - Error al obtener permisos:', permissionError);
+        // Continuar sin permisos en lugar de fallar completamente
+        permissions = [];
+      }
       
       // Convertir el documento de Mongoose a un objeto simple
       const employeeObject = employee.toObject();
@@ -177,10 +193,17 @@ export class AuthController {
       // Agregar los permisos
       employeeObject.permissions = permissions;
       
+      console.log('✅ getCurrentEmployee - Respuesta exitosa para:', employee.email);
+      
       // Enviar todos los campos del empleado
       res.json(employeeObject);
     } catch (error: any) {
-      res.status(500).json({ message: error.message });
+      console.error('❌ getCurrentEmployee - Error general:', error);
+      console.error('❌ Stack trace:', error.stack);
+      res.status(500).json({ 
+        message: 'Error interno del servidor', 
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   }
 
