@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Campaign } from '../models/Campaign';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export const getCampaigns: RequestHandler = async (req, res, next) => {
   try {
@@ -31,8 +32,21 @@ export const getCampaignById: RequestHandler = async (req, res, next) => {
 export const createCampaign: RequestHandler = async (req, res, next) => {
   try {
     const campaign = new Campaign(req.body);
-    await campaign.save();
-    res.status(201).json(campaign);
+    const savedCampaign = await campaign.save();
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'creación',
+      `Campaña creada: ${savedCampaign.name}`,
+      'campaña',
+      (savedCampaign._id as any).toString(),
+      undefined,
+      sanitizeDataForAudit(savedCampaign),
+      'campañas'
+    );
+    
+    res.status(201).json(savedCampaign);
   } catch (error) {
     next(error);
   }
@@ -40,6 +54,9 @@ export const createCampaign: RequestHandler = async (req, res, next) => {
 
 export const updateCampaign: RequestHandler = async (req, res, next) => {
   try {
+    // Obtener datos anteriores para auditoría
+    const previousCampaign = await Campaign.findById(req.params.id);
+    
     const campaign = await Campaign.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -52,6 +69,19 @@ export const updateCampaign: RequestHandler = async (req, res, next) => {
       res.status(404).json({ message: 'Campaña no encontrada' });
       return;
     }
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'actualización',
+      `Campaña actualizada: ${campaign.name}`,
+      'campaña',
+      (campaign._id as any).toString(),
+      previousCampaign ? sanitizeDataForAudit(previousCampaign) : undefined,
+      sanitizeDataForAudit(campaign),
+      'campañas'
+    );
+    
     res.json(campaign);
   } catch (error) {
     next(error);
@@ -60,11 +90,26 @@ export const updateCampaign: RequestHandler = async (req, res, next) => {
 
 export const deleteCampaign: RequestHandler = async (req, res, next) => {
   try {
-    const campaign = await Campaign.findByIdAndDelete(req.params.id);
+    const campaign = await Campaign.findById(req.params.id);
     if (!campaign) {
       res.status(404).json({ message: 'Campaña no encontrada' });
       return;
     }
+    
+    await Campaign.findByIdAndDelete(req.params.id);
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'eliminación',
+      `Campaña eliminada: ${campaign.name}`,
+      'campaña',
+      (campaign._id as any).toString(),
+      sanitizeDataForAudit(campaign),
+      undefined,
+      'campañas'
+    );
+    
     res.json({ message: 'Campaña eliminada correctamente' });
   } catch (error) {
     next(error);

@@ -2,6 +2,8 @@ import { Request, Response, NextFunction } from 'express';
 import { Lead, ILead } from '../models/Lead';
 import mongoose from 'mongoose';
 import { Client, IClient } from '../models/Client';
+import auditService from '../services/auditService';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export class LeadController {
   /**
@@ -153,6 +155,20 @@ export class LeadController {
       const populatedLead = await Lead.findById(lead._id)
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email');
+      
+      // Registrar la acción en el log de auditoría
+      if (lead && req.employee && lead._id) {
+        await logAuditAction(
+          req,
+          'creación',
+          `Creación de lead: ${lead.firstName} ${lead.lastName}`,
+          'lead',
+          lead._id.toString(),
+          null,
+          sanitizeDataForAudit(lead),
+          'leads'
+        );
+      }
 
       res.status(201).json(populatedLead);
     } catch (error) {
@@ -165,6 +181,15 @@ export class LeadController {
    */
   static async updateLead(req: Request, res: Response, next: NextFunction) {
     try {
+      // Obtener el lead original para auditoría
+      const originalLead = await Lead.findById(req.params.id) as ILead;
+      if (!originalLead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      const sanitizedOldData = sanitizeDataForAudit(originalLead);
+      
+      // Actualizar el lead
       const lead = await Lead.findByIdAndUpdate(
         req.params.id,
         req.body,
@@ -172,10 +197,26 @@ export class LeadController {
       )
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email')
-        .populate('interactionHistory.user', 'firstName lastName email');
+        .populate('interactionHistory.user', 'firstName lastName email') as ILead;
 
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      // Registrar la acción en el log de auditoría si hay cambios significativos
+      if (lead && req.employee && lead._id) {
+        const sanitizedNewData = sanitizeDataForAudit(lead);
+        
+        await logAuditAction(
+          req,
+          'actualización',
+          `Actualización de lead: ${lead.firstName} ${lead.lastName}`,
+          'lead',
+          lead._id.toString(),
+          sanitizedOldData,
+          sanitizedNewData,
+          'leads'
+        );
       }
 
       res.json(lead);
@@ -189,10 +230,33 @@ export class LeadController {
    */
   static async deleteLead(req: Request, res: Response, next: NextFunction) {
     try {
-      const lead = await Lead.findByIdAndDelete(req.params.id);
+      // Obtener el lead que se va a eliminar para auditoría
+      const leadToDelete = await Lead.findById(req.params.id) as ILead;
+      if (!leadToDelete) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      const sanitizedData = sanitizeDataForAudit(leadToDelete);
+      
+      // Eliminar el lead
+      const lead = await Lead.findByIdAndDelete(req.params.id) as ILead;
 
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      // Registrar la acción en el log de auditoría
+      if (req.employee && lead._id) {
+        await logAuditAction(
+          req,
+          'eliminación',
+          `Eliminación de lead: ${lead.firstName} ${lead.lastName}`,
+          'lead',
+          lead._id.toString(),
+          sanitizedData,
+          null,
+          'leads'
+        );
       }
 
       res.json({ message: 'Lead eliminado correctamente' });

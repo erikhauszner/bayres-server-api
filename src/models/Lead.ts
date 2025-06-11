@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { sanitizeDataForAudit, getChangedFields } from '../utils/auditUtils';
 
 export interface ILead extends Document {
   // Información Básica
@@ -196,10 +197,82 @@ LeadSchema.index({ phone: 1 });
 LeadSchema.index({ facebook: 1 });
 LeadSchema.index({ company: 1 });
 
+// Almacenar el documento original para comparar cambios
+LeadSchema.pre('findOneAndUpdate', async function() {
+  // @ts-ignore - el this está definido en el contexto de Mongoose
+  const docToUpdate = await this.model.findOne(this.getQuery());
+  if (docToUpdate) {
+    // @ts-ignore - extender el this con propiedad personalizada
+    this._originalDoc = docToUpdate.toObject();
+  }
+});
+
 // Middleware para actualizar el campo updatedAt
 LeadSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
+});
+
+// Hooks para auditoría
+// Estos hooks no registran la auditoría directamente, sino que preparan los datos
+// para que el controlador lo haga con el contexto completo del request
+
+// Capturar información para auditoría durante creación
+LeadSchema.post('save', function(doc) {
+  if (doc && doc.isNew) {
+    // Almacenar datos sanitizados para auditoría
+    // @ts-ignore - extender el documento con propiedad personalizada
+    doc._auditNewData = sanitizeDataForAudit(doc);
+    // @ts-ignore
+    doc._auditAction = 'creación';
+    // @ts-ignore
+    doc._auditTargetType = 'lead';
+    // @ts-ignore
+    doc._auditDescription = `Creación de lead: ${doc.firstName} ${doc.lastName}`;
+  }
+});
+
+// Capturar información para auditoría durante actualización
+LeadSchema.post('findOneAndUpdate', async function(doc) {
+  // @ts-ignore
+  const originalDoc = this._originalDoc;
+  
+  if (doc && originalDoc) {
+    const sanitizedOldDoc = sanitizeDataForAudit(originalDoc);
+    const sanitizedNewDoc = sanitizeDataForAudit(doc);
+    const changedFields = getChangedFields(sanitizedOldDoc, sanitizedNewDoc);
+    
+    if (changedFields.length > 0) {
+      // @ts-ignore - extender el documento con propiedades personalizadas
+      doc._auditPreviousData = sanitizedOldDoc;
+      // @ts-ignore
+      doc._auditNewData = sanitizedNewDoc;
+      // @ts-ignore
+      doc._auditAction = 'actualización';
+      // @ts-ignore
+      doc._auditTargetType = 'lead';
+      // @ts-ignore
+      doc._auditChangedFields = changedFields;
+      // @ts-ignore
+      doc._auditDescription = `Actualización de lead: ${doc.firstName} ${doc.lastName} (campos: ${changedFields.join(', ')})`;
+    }
+  }
+});
+
+// Capturar información para auditoría durante eliminación
+LeadSchema.pre('findOneAndDelete', async function() {
+  // @ts-ignore
+  const docToDelete = await this.model.findOne(this.getQuery());
+  if (docToDelete) {
+    // @ts-ignore - extender el this con propiedad personalizada
+    this._deletedDoc = sanitizeDataForAudit(docToDelete);
+    // @ts-ignore
+    this._auditAction = 'eliminación';
+    // @ts-ignore
+    this._auditTargetType = 'lead';
+    // @ts-ignore
+    this._auditDescription = `Eliminación de lead: ${docToDelete.firstName} ${docToDelete.lastName}`;
+  }
 });
 
 export const Lead = mongoose.model<ILead>('Lead', LeadSchema); 

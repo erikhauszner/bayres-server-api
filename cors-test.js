@@ -5,12 +5,14 @@ console.log('Verificando configuración CORS...');
 
 // Opciones para la solicitud OPTIONS preflight
 const options = {
-  hostname: 'api.bayreshub.com',
+//  hostname: 'api.bayreshub.com',
+  hostname: 'localhost:3000',
   port: 443, // Puerto HTTPS estándar
   path: '/health',
   method: 'OPTIONS',
   headers: {
     'Origin': 'https://panel.bayreshub.com',
+    'Origin': 'https://localhost:3001',
     'Access-Control-Request-Method': 'GET',
     'Access-Control-Request-Headers': 'Content-Type'
   }
@@ -27,6 +29,7 @@ const req = https.request(options, (res) => {
   
   if (res.statusCode === 204 || res.statusCode === 200) {
     if (res.headers['access-control-allow-origin'] === 'https://panel.bayreshub.com' ||
+        res.headers['access-control-allow-origin'] === 'https://localhost:3001' ||
         res.headers['access-control-allow-origin'] === '*') {
       console.log('\n✅ La configuración CORS parece correcta.');
     } else {

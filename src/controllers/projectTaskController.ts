@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
-import { ProjectTask } from '../models/ProjectTask';
+import ProjectTask from '../models/ProjectTask';
 import { Project } from '../models/Project';
 
 // Obtener todas las tareas de un proyecto
@@ -288,9 +288,9 @@ export const updateProjectTaskDates = async (req: Request, res: Response): Promi
       
       console.log('Tarea encontrada:', {
         id: taskIdString,
-        name: task.name,
+        title: task.title,
         startDateAntes: task.startDate,
-        endDateAntes: task.endDate
+        dueDateAntes: task.dueDate
       });
       
       // Crear objetos Date a partir de las cadenas ISO
@@ -307,7 +307,7 @@ export const updateProjectTaskDates = async (req: Request, res: Response): Promi
         taskIdString,
         { 
           startDate: newStartDate,
-          endDate: newEndDate
+          dueDate: newEndDate
         },
         { 
           new: true,           // Devuelve el documento actualizado
@@ -331,14 +331,14 @@ export const updateProjectTaskDates = async (req: Request, res: Response): Promi
       } else {
         console.log('Verificación después de actualizar:', {
           startDateVerificada: verifyTask.startDate,
-          endDateVerificada: verifyTask.endDate
+          dueDateVerificada: verifyTask.dueDate
         });
         
         // Comprobar si las fechas coinciden con lo que intentamos guardar
-        const startDateMatch = verifyTask.startDate.toISOString() === newStartDate.toISOString();
-        const endDateMatch = verifyTask.endDate.toISOString() === newEndDate.toISOString();
+        const startDateMatch = verifyTask.startDate?.toISOString() === newStartDate.toISOString();
+        const dueDateMatch = verifyTask.dueDate?.toISOString() === newEndDate.toISOString();
         
-        if (!startDateMatch || !endDateMatch) {
+        if (!startDateMatch || !dueDateMatch) {
           console.warn('Advertencia: Las fechas verificadas no coinciden con las que intentamos guardar');
         }
       }
@@ -349,7 +349,7 @@ export const updateProjectTaskDates = async (req: Request, res: Response): Promi
       console.log('Tarea actualizada correctamente:', {
         id: updatedTaskDoc._id.toString(),
         startDateDespues: updatedTask.startDate,
-        endDateDespues: updatedTask.endDate
+        dueDateDespues: updatedTask.dueDate
       });
       
       // Enviar una respuesta explícita al cliente con las fechas actualizadas
@@ -358,7 +358,7 @@ export const updateProjectTaskDates = async (req: Request, res: Response): Promi
         task: updatedTask,
         fechas: {
           startDate: updatedTask.startDate,
-          endDate: updatedTask.endDate
+          dueDate: updatedTask.dueDate
         }
       });
     } catch (error) {

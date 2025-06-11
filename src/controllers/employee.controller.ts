@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Employee from '../models/Employee';
 import bcrypt from 'bcryptjs';
 import { createError } from '../utils/error';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 import mongoose from 'mongoose';
 
 // Definición de interfaz para el rol populado
@@ -113,8 +114,21 @@ export const createEmployee: RequestHandler = async (req, res, next) => {
     
     // Intentar guardar y capturar errores de validación
     try {
-      await employee.save();
-      res.status(201).json(employee);
+      const savedEmployee = await employee.save();
+      
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'creación',
+        `Empleado creado: ${savedEmployee.firstName} ${savedEmployee.lastName}`,
+        'empleado',
+        (savedEmployee._id as any).toString(),
+        undefined,
+        sanitizeDataForAudit(savedEmployee),
+        'empleados'
+      );
+      
+      res.status(201).json(savedEmployee);
     } catch (validationError: any) {
       // Si es un error de validación de Mongoose
       if (validationError.name === 'ValidationError') {
@@ -210,6 +224,9 @@ export const updateEmployee: RequestHandler = async (req, res, next) => {
     }
     
     try {
+      // Obtener datos anteriores para auditoría
+      const previousEmployee = await Employee.findById(employeeId).select('-password');
+      
       const employee = await Employee.findByIdAndUpdate(
         employeeId,
         req.body,
@@ -220,6 +237,19 @@ export const updateEmployee: RequestHandler = async (req, res, next) => {
         res.status(404).json({ message: 'Empleado no encontrado' });
         return;
       }
+      
+      // Registrar auditoría
+      const actionType = isProfileUpdate ? 'actualización de perfil' : 'actualización';
+      await logAuditAction(
+        req,
+        'actualización',
+        `${actionType}: ${employee.firstName} ${employee.lastName}`,
+        'empleado',
+        (employee._id as any).toString(),
+        previousEmployee ? sanitizeDataForAudit(previousEmployee) : undefined,
+        sanitizeDataForAudit(employee),
+        'empleados'
+      );
       
       res.json(employee);
     } catch (validationError: any) {
@@ -258,10 +288,25 @@ export const updateEmployee: RequestHandler = async (req, res, next) => {
 // Eliminar un empleado
 export const deleteEmployee: RequestHandler = async (req, res, next) => {
   try {
-    const employee = await Employee.findByIdAndDelete(req.params.id);
+    const employee = await Employee.findById(req.params.id).select('-password');
     if (!employee) {
       return next(createError(404, 'Empleado no encontrado'));
     }
+    
+    await Employee.findByIdAndDelete(req.params.id);
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'eliminación',
+      `Empleado eliminado: ${employee.firstName} ${employee.lastName}`,
+      'empleado',
+      (employee._id as any).toString(),
+      sanitizeDataForAudit(employee),
+      undefined,
+      'empleados'
+    );
+    
     res.json({ message: 'Empleado eliminado correctamente' });
   } catch (error) {
     next(createError(500, 'Error al eliminar el empleado'));
@@ -281,6 +326,18 @@ export const activateEmployee: RequestHandler = async (req, res, next) => {
       return next(createError(404, 'Empleado no encontrado'));
     }
     
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'cambio_estado',
+      `Empleado activado: ${employee.firstName} ${employee.lastName}`,
+      'empleado',
+      (employee._id as any).toString(),
+      undefined,
+      { isActive: true },
+      'empleados'
+    );
+    
     res.json(employee);
   } catch (error) {
     next(createError(500, 'Error al activar el empleado'));
@@ -299,6 +356,18 @@ export const deactivateEmployee: RequestHandler = async (req, res, next) => {
     if (!employee) {
       return next(createError(404, 'Empleado no encontrado'));
     }
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'cambio_estado',
+      `Empleado desactivado: ${employee.firstName} ${employee.lastName}`,
+      'empleado',
+      (employee._id as any).toString(),
+      undefined,
+      { isActive: false },
+      'empleados'
+    );
     
     res.json(employee);
   } catch (error) {
@@ -334,6 +403,18 @@ export const resetEmployeePassword: RequestHandler = async (req, res, next) => {
     }
     
     await employee.save();
+    
+    // Registrar auditoría
+    await logAuditAction(
+      req,
+      'actualización',
+      `Contraseña reseteada para empleado: ${employee.firstName} ${employee.lastName}`,
+      'empleado',
+      (employee._id as any).toString(),
+      undefined,
+      { passwordReset: true, forcePasswordChange: employee.forcePasswordChange },
+      'empleados'
+    );
     
     res.json({ 
       message: 'Contraseña actualizada correctamente',

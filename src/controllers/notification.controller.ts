@@ -3,6 +3,7 @@ import { NotificationService } from '../services/notification.service';
 import { IEmployee } from '../models/Employee';
 import Employee from '../models/Employee';
 import { io } from '../server'; // Importar io
+import { logAuditAction } from '../utils/auditUtils';
 
 // Definir tipos para usar en el controlador
 interface RequestWithUser extends Request {
@@ -165,6 +166,18 @@ export class NotificationController {
       const count = await NotificationService.deleteAll(
         employeeId.toString(),
         isRead === 'true'
+      );
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'eliminación',
+        `Eliminación masiva de notificaciones (${count} eliminadas)`,
+        'notificación',
+        employeeId.toString(),
+        undefined,
+        { deletedCount: count, isRead: isRead === 'true' },
+        'notificaciones'
       );
 
       res.json({ count });

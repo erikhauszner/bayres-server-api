@@ -3,6 +3,7 @@ import { AuthService } from '../services/employee-auth.service';
 import Employee from '../models/Employee';
 import { RequestHandler, NextFunction } from 'express';
 import { createError } from '../utils/error';
+import { logAuditAction } from '../utils/auditUtils';
 
 export class AuthController {
   static async register(req: Request, res: Response) {
@@ -34,6 +35,23 @@ export class AuthController {
 
       const { employee, token } = await AuthService.login(email, password, deviceInfo);
 
+      // Registrar auditoría del login
+      await logAuditAction(
+        req,
+        'login',
+        `Inicio de sesión exitoso: ${employee.firstName} ${employee.lastName}`,
+        'empleado',
+        (employee._id as any).toString(),
+        undefined,
+        {
+          email: employee.email,
+          loginTime: new Date(),
+          ip: req.ip,
+          userAgent: req.headers['user-agent']
+        },
+        'autenticación'
+      );
+
       res.json({
         message: 'Login exitoso',
         employee: {
@@ -57,7 +75,29 @@ export class AuthController {
         throw new Error('Token no proporcionado');
       }
 
+      // Obtener información del empleado antes del logout
+      const employee = req.employee;
+      
       await AuthService.logout(token);
+      
+      // Registrar auditoría del logout si tenemos información del empleado
+      if (employee) {
+        await logAuditAction(
+          req,
+          'logout',
+          `Cierre de sesión: ${employee.firstName} ${employee.lastName}`,
+          'empleado',
+          (employee._id as any).toString(),
+          undefined,
+          {
+            logoutTime: new Date(),
+            ip: req.ip,
+            userAgent: req.headers['user-agent']
+          },
+          'autenticación'
+        );
+      }
+      
       res.json({ message: 'Sesión cerrada exitosamente' });
     } catch (error: any) {
       res.status(400).json({
@@ -77,6 +117,22 @@ export class AuthController {
       }
 
       await AuthService.changePassword(employeeId, currentPassword, newPassword);
+      
+      // Registrar auditoría del cambio de contraseña
+      const employee = req.employee;
+      if (employee) {
+        await logAuditAction(
+          req,
+          'actualización',
+          `Cambio de contraseña: ${employee.firstName} ${employee.lastName}`,
+          'empleado',
+          (employee._id as any).toString(),
+          undefined,
+          { passwordChanged: true, changeTime: new Date() },
+          'autenticación'
+        );
+      }
+      
       res.json({ message: 'Contraseña actualizada exitosamente' });
     } catch (error: any) {
       res.status(400).json({ message: error.message });
@@ -166,6 +222,18 @@ export class AuthController {
       
       // Guardar los cambios
       await employee.save();
+      
+      // Registrar auditoría del cambio forzado de contraseña
+      await logAuditAction(
+        req,
+        'actualización',
+        `Cambio forzado de contraseña completado: ${employee.firstName} ${employee.lastName}`,
+        'empleado',
+        (employee._id as any).toString(),
+        undefined,
+        { forcedPasswordChange: true, changeTime: new Date() },
+        'autenticación'
+      );
       
       // Responder exitosamente
       res.json({ 

@@ -2,8 +2,9 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import jwt, { JsonWebTokenError } from 'jsonwebtoken';
 import { IEmployee } from '../models/Employee';
 import Employee from '../models/Employee';
-import Role from '../models/Role';
+import { PermissionService, PermissionError } from '../services/permission.service';
 import mongoose from 'mongoose';
+import Logger from '../utils/logger';
 
 interface JwtPayload {
   employeeId: string;
@@ -32,67 +33,19 @@ const getJwtSecret = (): string => {
   return secret;
 };
 
-// Función para obtener los permisos de un usuario desde la base de datos
-const getEmployeePermissionsFromDB = async (employeeId: string, roleIdOrName: any): Promise<string[]> => {
-  try {
-    console.log(`Consultando permisos para el rol ${roleIdOrName} del empleado ${employeeId}`);
-    
-    let role;
-    
-    // Determinar si roleIdOrName es un ObjectId o un nombre de rol
-    const isObjectId = mongoose.Types.ObjectId.isValid(roleIdOrName);
-    
-    if (isObjectId) {
-      // Buscar el rol por ID
-      role = await Role.findById(roleIdOrName).populate('permissions');
-      console.log(`Buscando rol por ID: ${roleIdOrName}`);
-    } else {
-      // Buscar el rol por nombre
-      role = await Role.findOne({ name: roleIdOrName }).populate('permissions');
-      console.log(`Buscando rol por nombre: ${roleIdOrName}`);
-    }
-    
-    if (!role || !role.isActive) {
-      console.log(`Rol ${roleIdOrName} no encontrado o inactivo`);
-      return [];
-    }
-
-    // Registrar información del rol encontrado
-    console.log(`Rol encontrado: ${role.name} (ID: ${role._id})`);
-    
-    // Verificar que role.permissions exista antes de acceder a length
-    if (!role.permissions) {
-      console.log('Error: role.permissions es undefined');
-      return [];
-    }
-    
-    console.log(`Número de permisos encontrados: ${role.permissions.length}`);
-
-    // Convertir los permisos a un formato 'module:action'
-    const permissionStrings = role.permissions
-      .filter((permission: any) => permission.isActive)
-      .map((permission: any) => `${permission.module}:${permission.action}`);
-
-    console.log(`Permisos obtenidos directamente de la base de datos:`, permissionStrings);
-    return permissionStrings;
-  } catch (error) {
-    console.error('Error al obtener permisos:', error);
-    return [];
-  }
-};
-
 export const authenticateToken: RequestHandler = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = authHeader && authHeader.split(' ')[1];
 
     // Registro detallado para depuración
-    console.log('===== Autenticación =====');
-    console.log('Ruta solicitada:', req.originalUrl);
-    console.log('Método:', req.method);
-    console.log('Authorization header present:', !!authHeader);
-    console.log('Token present:', !!token);
-    console.log('JWT_SECRET configured:', !!process.env.JWT_SECRET);
+    Logger.debug('Autenticación', {
+      route: req.originalUrl,
+      method: req.method,
+      hasAuthHeader: !!authHeader,
+      hasToken: !!token,
+      hasJwtSecret: !!process.env.JWT_SECRET
+    });
 
     if (!token) {
       res.status(401).json({ message: 'Token no proporcionado' });
@@ -100,37 +53,40 @@ export const authenticateToken: RequestHandler = async (req, res, next) => {
     }
 
     try {
-      const jwtSecret = getJwtSecret();
-      console.log('Validando token con secreto:', jwtSecret.substring(0, 10) + '...');
+      Logger.debug('Validando token con renovación automática');
       
-      const decoded = jwt.verify(token, jwtSecret) as JwtPayload;
-      console.log('Token decodificado:', { 
-        employeeId: decoded.employeeId, 
-        role: decoded.role,
-        permissions: decoded.permissions || [] 
+      // Usar el AuthService mejorado que incluye renovación automática
+      const AuthService = await import('../services/employee-auth.service').then(m => m.AuthService);
+      const validationResult = await AuthService.validateToken(token);
+      const { employee, newToken } = validationResult;
+      
+      Logger.debug('Token validado', { 
+        employeeId: employee._id,
+        role: employee.role,
+        tokenRenewed: !!newToken
       });
       
-      // Validación extendida: verificar que el empleado existe en la base de datos
-      const employee = await Employee.findById(decoded.employeeId);
-      if (!employee) {
-        console.log('El empleado no existe en la base de datos');
-        res.status(401).json({ message: 'Empleado no encontrado' });
-        return;
+      // Si se generó un nuevo token, enviarlo en la respuesta
+      if (newToken) {
+        res.setHeader('X-New-Token', newToken);
+        Logger.info('Nuevo token enviado al cliente', { 
+          employeeId: employee._id 
+        });
       }
       
       if (!employee.isActive) {
-        console.log('El empleado está inactivo');
+        Logger.warn('Intento de autenticación con cuenta inactiva', { employeeId: employee._id });
         res.status(403).json({ message: 'Empleado inactivo' });
         return;
       }
 
       // Verificar si el empleado debe cambiar su contraseña
       if (employee.forcePasswordChange) {
-        console.log('El empleado debe cambiar su contraseña');
+        Logger.debug('Empleado debe cambiar su contraseña', { employeeId: employee._id });
         
         // Si la ruta actual no es para cambiar la contraseña, redirigir
         const isChangingPassword = req.originalUrl.includes('/change-password') || 
-                                  req.originalUrl.includes('/auth/change-password');
+                                   req.originalUrl.includes('/auth/change-password');
         
         if (!isChangingPassword) {
           // Devolver un código especial para indicar que debe cambiar la contraseña
@@ -142,103 +98,118 @@ export const authenticateToken: RequestHandler = async (req, res, next) => {
         }
       }
 
-      // Obtener permisos directamente de la base de datos en lugar de usar los del token
-      const permissions = await getEmployeePermissionsFromDB(
-        (employee as any)._id.toString(), 
-        (employee as any).role.toString()
-      );
-      console.log('Permisos obtenidos de la base de datos:', permissions);
-      
-      // Usar as any para evitar problemas de tipo con documentos de mongoose
-      req.employee = {
-        _id: employee._id,
-        email: employee.email,
-        firstName: employee.firstName,
-        lastName: employee.lastName,
-        role: employee.role,
-        isActive: employee.isActive,
-        permissions, // Asignar los permisos obtenidos de la base de datos
-        lastLogin: employee.lastLogin,
-        forcePasswordChange: employee.forcePasswordChange
-      } as any as IEmployee;
+      // Los permisos ya fueron cargados por AuthService.validateToken()
+      // Solo asignar el empleado a la solicitud
+      req.employee = employee;
       
       next();
     } catch (error) {
-      const jwtError = error as JsonWebTokenError;
-      console.error('Error al verificar el token JWT:', jwtError.message);
-      res.status(403).json({ message: 'Token inválido', error: jwtError.message });
+      // Manejar errores de validación de token
+      if (error instanceof Error && error.message.includes('Token inválido')) {
+        Logger.warn('Token inválido en middleware', { error: error.message });
+        res.status(403).json({ message: 'Token inválido' });
+        return;
+      }
+      
+      if (error instanceof Error && error.message.includes('Sesión inválida')) {
+        Logger.warn('Sesión inválida en middleware', { error: error.message });
+        res.status(401).json({ message: 'Sesión expirada' });
+        return;
+      }
+      
+      // Errores JWT específicos
+      if (error instanceof JsonWebTokenError) {
+        Logger.warn('Error JWT en middleware', { error: error.message });
+        res.status(403).json({ message: 'Token inválido', error: error.message });
+        return;
+      }
+      
+      Logger.error('Error al validar token en middleware', error);
+      res.status(500).json({ message: 'Error interno del servidor' });
       return;
     }
   } catch (error) {
-    console.error('Error en middleware de autenticación:', error);
+    Logger.error('Error en middleware de autenticación', error);
     res.status(500).json({ message: 'Error interno del servidor' });
   }
 };
 
 // Middleware que verifica que el usuario tenga TODOS los permisos requeridos
 export const checkPermissions = (requiredPermissions: string[]): RequestHandler => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.employee) {
       res.status(401).json({ message: 'No autenticado' });
       return;
     }
 
-    // Acceder a los permisos del empleado que hemos asignado previamente
-    const employeePermissions = (req.employee as any).permissions || [];
-    
-    console.log('Verificando permisos:');
-    console.log('Permisos requeridos:', requiredPermissions);
-    console.log('Permisos del empleado:', employeePermissions);
-
-    // Verificar si el empleado tiene todos los permisos requeridos
-    const hasPermission = requiredPermissions.every(permission => 
-      employeePermissions.includes(permission)
-    );
-
-    if (!hasPermission) {
-      res.status(403).json({ 
-        message: 'No autorizado', 
+    try {
+      const hasPermission = await PermissionService.hasAllPermissions(req.employee, requiredPermissions);
+      
+      Logger.debug('Verificando permisos', {
         requiredPermissions,
-        employeePermissions
+        employeeId: String(req.employee._id),
+        permissionsCount: req.employee.permissions?.length || 0,
+        hasAllPermissions: hasPermission
       });
-      return;
-    }
+      
+      if (!hasPermission) {
+        Logger.warn('Acceso denegado - permisos insuficientes', {
+          employeeId: String(req.employee._id),
+          requiredPermissions,
+          route: req.originalUrl
+        });
+        
+        res.status(403).json({ 
+          message: 'No autorizado', 
+          requiredPermissions
+        });
+        return;
+      }
 
-    next();
+      next();
+    } catch (error) {
+      Logger.error('Error al verificar permisos', error);
+      res.status(500).json({ message: 'Error al verificar permisos' });
+    }
   };
 }; 
 
 // Middleware que verifica que el usuario tenga AL MENOS UNO de los permisos requeridos
 export const checkAnyPermissions = (requiredPermissions: string[]): RequestHandler => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.employee) {
       res.status(401).json({ message: 'No autenticado' });
       return;
     }
 
-    // Acceder a los permisos del empleado que hemos asignado previamente
-    const employeePermissions = (req.employee as any).permissions || [];
-    
-    console.log('Verificando permisos (AL MENOS UNO):');
-    console.log('Permisos requeridos (cualquiera):', requiredPermissions);
-    console.log('Permisos del empleado:', employeePermissions);
-
-    // Verificar si el empleado tiene al menos uno de los permisos requeridos
-    const hasAnyPermission = requiredPermissions.some(permission => 
-      employeePermissions.includes(permission)
-    );
-    
-    console.log('¿Tiene al menos uno de los permisos?', hasAnyPermission);
-
-    if (!hasAnyPermission) {
-      res.status(403).json({ 
-        message: 'No autorizado', 
+    try {
+      const hasAnyPermission = await PermissionService.hasAnyPermission(req.employee, requiredPermissions);
+      
+      Logger.debug('Verificando permisos (AL MENOS UNO)', {
         requiredPermissions,
-        employeePermissions
+        employeeId: String(req.employee._id),
+        permissionsCount: req.employee.permissions?.length || 0,
+        hasAnyPermission
       });
-      return;
-    }
+      
+      if (!hasAnyPermission) {
+        Logger.warn('Acceso denegado - sin permisos requeridos', {
+          employeeId: String(req.employee._id),
+          requiredPermissions,
+          route: req.originalUrl
+        });
+        
+        res.status(403).json({ 
+          message: 'No autorizado', 
+          requiredPermissions
+        });
+        return;
+      }
 
-    next();
+      next();
+    } catch (error) {
+      Logger.error('Error al verificar permisos', error);
+      res.status(500).json({ message: 'Error al verificar permisos' });
+    }
   };
 }; 

@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Client, IClient } from '../models/Client';
 import { Lead } from '../models/Lead';
 import mongoose from 'mongoose';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export const getClients: RequestHandler = async (req, res, next): Promise<void> => {
   try {
@@ -89,6 +90,20 @@ export const createClient: RequestHandler = async (req, res, next): Promise<void
     const populatedClient = await Client.findById(client._id)
       .populate('assignedTo', 'firstName lastName email')
       .populate('createdBy', 'firstName lastName email');
+      
+    // Registrar acción en el log de auditoría
+    if (client && req.employee && client._id) {
+      await logAuditAction(
+        req,
+        'creación',
+        `Creación de cliente: ${client.name}`,
+        'cliente',
+        client._id.toString(),
+        null,
+        sanitizeDataForAudit(client),
+        'clientes'
+      );
+    }
 
     res.status(201).json(populatedClient);
   } catch (error) {
@@ -98,6 +113,15 @@ export const createClient: RequestHandler = async (req, res, next): Promise<void
 
 export const updateClient: RequestHandler = async (req, res, next): Promise<void> => {
   try {
+    // Obtener el cliente original para auditoría
+    const originalClient = await Client.findById(req.params.id) as IClient;
+    if (!originalClient) {
+      res.status(404).json({ message: 'Cliente no encontrado' });
+      return;
+    }
+
+    const sanitizedOldData = sanitizeDataForAudit(originalClient);
+
     const client = await Client.findByIdAndUpdate(
       req.params.id,
       req.body,
@@ -112,6 +136,22 @@ export const updateClient: RequestHandler = async (req, res, next): Promise<void
       return;
     }
 
+    // Registrar acción en el log de auditoría
+    if (client && req.employee && client._id) {
+      const sanitizedNewData = sanitizeDataForAudit(client);
+      
+      await logAuditAction(
+        req,
+        'actualización',
+        `Actualización de cliente: ${client.name}`,
+        'cliente',
+        client._id.toString(),
+        sanitizedOldData,
+        sanitizedNewData,
+        'clientes'
+      );
+    }
+
     res.json(client);
   } catch (error) {
     next(error);
@@ -120,11 +160,34 @@ export const updateClient: RequestHandler = async (req, res, next): Promise<void
 
 export const deleteClient: RequestHandler = async (req, res, next): Promise<void> => {
   try {
+    // Obtener el cliente que se va a eliminar para auditoría
+    const clientToDelete = await Client.findById(req.params.id) as IClient;
+    if (!clientToDelete) {
+      res.status(404).json({ message: 'Cliente no encontrado' });
+      return;
+    }
+
+    const sanitizedData = sanitizeDataForAudit(clientToDelete);
+
     const client = await Client.findByIdAndDelete(req.params.id);
 
     if (!client) {
       res.status(404).json({ message: 'Cliente no encontrado' });
       return;
+    }
+
+    // Registrar acción en el log de auditoría
+    if (req.employee && client._id) {
+      await logAuditAction(
+        req,
+        'eliminación',
+        `Eliminación de cliente: ${client.name}`,
+        'cliente',
+        client._id.toString(),
+        sanitizedData,
+        null,
+        'clientes'
+      );
     }
 
     res.json({ message: 'Cliente eliminado correctamente' });

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { Invoice, IInvoice } from '../../models/Finance';
 import { Project } from '../../models/Project';
 import { Client } from '../../models/Client';
+import { logAuditAction, sanitizeDataForAudit } from '../../utils/auditUtils';
 
 export class InvoiceController {
   /**
@@ -155,9 +156,21 @@ export class InvoiceController {
       
       const invoice = new Invoice(invoiceData);
       
-      await invoice.save();
+      const savedInvoice = await invoice.save();
       
-      res.status(201).json(invoice);
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'creación',
+        `Factura creada: ${savedInvoice.number}`,
+        'factura',
+        (savedInvoice._id as any).toString(),
+        undefined,
+        sanitizeDataForAudit(savedInvoice),
+        'finanzas'
+      );
+      
+      res.status(201).json(savedInvoice);
     } catch (error) {
       next(error);
     }
@@ -171,6 +184,9 @@ export class InvoiceController {
       const { id } = req.params;
       
       const updateData = { ...req.body };
+      
+      // Obtener datos anteriores para auditoría
+      const previousInvoice = await Invoice.findById(id);
       
       // Si se actualiza el total, recalcular el balance
       if (updateData.total !== undefined) {
@@ -192,6 +208,18 @@ export class InvoiceController {
       if (!invoice) {
         return res.status(404).json({ message: 'Factura no encontrada' });
       }
+      
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'actualización',
+        `Factura actualizada: ${invoice.number}`,
+        'factura',
+        (invoice._id as any).toString(),
+        previousInvoice ? sanitizeDataForAudit(previousInvoice) : undefined,
+        sanitizeDataForAudit(invoice),
+        'finanzas'
+      );
       
       res.json(invoice);
     } catch (error) {

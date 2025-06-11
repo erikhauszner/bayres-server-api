@@ -3,40 +3,64 @@
 // evitar problemas de tipado.
 // Lo mantenemos como referencia.
 
-import { Router, RequestHandler, Request, Response } from 'express';
-import { NotificationController } from '../controllers/notification.controller';
+import express from 'express';
+import {
+  createNotification,
+  getUserNotifications,
+  markAsRead,
+  deleteNotification,
+  createProjectNotifications,
+  getProjectNotifications,
+  processScheduledNotifications
+} from '../controllers/notificationController';
 import { authenticateToken, checkPermissions } from '../middleware/auth.middleware';
+import { auditCreation, auditUpdate, auditDeletion } from '../middleware/audit.middleware';
 
-const router = Router();
+const router = express.Router();
 
 // Todas las rutas requieren autenticación
 router.use(authenticateToken);
 
-// Obtener notificaciones
-router.get('/', NotificationController.getNotifications as RequestHandler);
-
-// Marcar notificación como leída
-router.patch('/:notificationId/read', NotificationController.markAsRead as RequestHandler);
-
-// Marcar todas las notificaciones como leídas
-router.patch('/read-all', NotificationController.markAllAsRead as RequestHandler);
-
-// Eliminar una notificación
-router.delete('/:notificationId', NotificationController.deleteNotification as RequestHandler);
-
-// Eliminar todas las notificaciones
-router.delete('/', NotificationController.deleteAllNotifications as RequestHandler);
-
-// Contar notificaciones no leídas
-router.get('/unread/count', NotificationController.countUnread as RequestHandler);
-
-// Enviar notificación (nuevo endpoint según documentación)
+// Rutas básicas de notificaciones
 router.post('/', 
-  checkPermissions(['notifications:create']) as RequestHandler,
-  (req, res, next) => {
-    NotificationController.sendNotification(req, res)
-      .catch(next);
-  }
+  checkPermissions(['notifications:create']),
+  auditCreation('notificación', { module: 'notificaciones' }),
+  createNotification
+);
+
+router.get('/user', 
+  checkPermissions(['notifications:read']),
+  getUserNotifications
+);
+
+router.put('/:id/read', 
+  checkPermissions(['notifications:update']),
+  auditUpdate('notificación', { module: 'notificaciones' }),
+  markAsRead
+);
+
+router.delete('/:id', 
+  checkPermissions(['notifications:delete']),
+  auditDeletion('notificación', { module: 'notificaciones' }),
+  deleteNotification
+);
+
+// Rutas específicas para proyectos
+router.post('/project', 
+  checkPermissions(['projects:update']),
+  auditCreation('notificación_proyecto', { module: 'proyectos' }),
+  createProjectNotifications
+);
+
+router.get('/project/:projectId', 
+  checkPermissions(['projects:read']),
+  getProjectNotifications
+);
+
+// Ruta para procesar notificaciones programadas (para uso interno/cron)
+router.post('/process-scheduled', 
+  checkPermissions(['notifications:create']),
+  processScheduledNotifications
 );
 
 export default router; 

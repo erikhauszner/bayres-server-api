@@ -5,6 +5,7 @@ import http from 'http';
 import app from './app';
 import initializeRoles from './scripts/initializeRoles';
 import { Server as SocketIOServer } from 'socket.io';
+import { CronService } from './services/cronService';
 
 // Configuración de variables de entorno
 // Primero intentamos cargar desde .env.local (desarrollo local)
@@ -29,6 +30,8 @@ if (missingVars.length > 0) {
 
 const MONGODB_URI = process.env.MONGODB_URI!;
 const PORT = parseInt(process.env.PORT!) || 3000;
+const HOST = process.env.HOST || 'localhost';
+const isProduction = process.env.NODE_ENV === 'production';
 
 console.log(`Conectando a MongoDB: ${MONGODB_URI.includes('@') ? MONGODB_URI.split('@')[0].substring(0, 15) + '...' : MONGODB_URI.substring(0, 25) + '...'}`);
 
@@ -42,10 +45,17 @@ mongoose.connect(MONGODB_URI)
     // Crear servidor HTTP
     const server = http.createServer(app);
 
+    // Definir orígenes permitidos según el entorno
+    const productionOrigins = ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'];
+    const developmentOrigins = ['http://localhost:3001', `http://${HOST}:${PORT}`];
+    
+    const allowedOrigins = isProduction ? productionOrigins : developmentOrigins;
+    console.log('Orígenes CORS permitidos:', allowedOrigins);
+
     // Configurar Socket.IO con configuración simplificada
     const io = new SocketIOServer(server, {
       cors: {
-        origin: ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
+        origin: allowedOrigins,
         methods: ["GET", "POST", "OPTIONS"],
         credentials: true,
         allowedHeaders: ['Content-Type', 'Authorization']
@@ -107,11 +117,14 @@ mongoose.connect(MONGODB_URI)
     // Hacer disponible io para otros módulos
     app.set('io', io);
     
+    // Inicializar el sistema de cron jobs para notificaciones automáticas
+    CronService.initializeJobs();
+    
     // Exportar io para usarlo en otras partes de la aplicación
     // Iniciar el servidor HTTP
     server.listen(PORT, () => {
       console.log(`Servidor HTTP ejecutándose en el puerto ${PORT}`);
-      console.log(`Socket.IO esperando conexiones en ws://api.bayreshub.com/socket.io/`);
+      console.log(`Socket.IO esperando conexiones en ws://${HOST}:${PORT}/socket.io/`);
     });
 
     // Manejar errores del servidor
@@ -128,6 +141,25 @@ mongoose.connect(MONGODB_URI)
     console.error('Error al conectar a MongoDB:', error);
     process.exit(1);
   });
+
+// Manejo limpio del cierre de la aplicación
+process.on('SIGINT', () => {
+  console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
+  CronService.stopAllJobs();
+  mongoose.connection.close().then(() => {
+    console.log('✅ Conexión a MongoDB cerrada');
+    process.exit(0);
+  });
+});
+
+process.on('SIGTERM', () => {
+  console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
+  CronService.stopAllJobs();
+  mongoose.connection.close().then(() => {
+    console.log('✅ Conexión a MongoDB cerrada');
+    process.exit(0);
+  });
+});
 
 // Exportar app para pruebas
 export default app; 

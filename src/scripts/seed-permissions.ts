@@ -1,32 +1,36 @@
 import mongoose from 'mongoose';
-import { seedPermissions } from '../seeders/permissions.seed';
 import dotenv from 'dotenv';
 import path from 'path';
+import { seedPermissions } from '../seeders/permissions.seed';
 
-// Cargar variables de entorno
-dotenv.config({ path: path.resolve(__dirname, '../../../.env') });
+// Configuración de variables de entorno
+const envLocalPath = path.resolve(process.cwd(), '.env.local');
+dotenv.config({ path: envLocalPath });
+
+// Si no se cargaron todas las variables, cargamos el .env normal como fallback
+if (!process.env.MONGODB_URI) {
+  console.log('No se encontró .env.local completo, usando .env como fallback');
+  dotenv.config();
+}
+
+const MONGODB_URI = process.env.MONGODB_URI!;
 
 async function main() {
   try {
     console.log('Conectando a MongoDB...');
-    const mongoUri = process.env.MONGODB_URI || 'mongodb://root:0XdJF794RkeDQ8DbQiah7uqqZQAei7JVrYsuKXextWnKy7lqXo7QazEuEjVcbyjR@147.93.36.93:27017/default?directConnection=true';
-    await mongoose.connect(mongoUri);
+    await mongoose.connect(MONGODB_URI);
     console.log('Conexión a MongoDB establecida correctamente');
-    
-    console.log('Iniciando proceso de sembrado de permisos...');
+
+    // Sembrar los permisos
     await seedPermissions();
-    console.log('Permisos sembrados correctamente.');
-    
-    await mongoose.disconnect();
-    console.log('Conexión a MongoDB cerrada');
-    process.exit(0);
+    console.log('Permisos sembrados correctamente');
+
   } catch (error) {
     console.error('Error:', error);
-    if (mongoose.connection.readyState === 1) {
-      await mongoose.disconnect();
-      console.log('Conexión a MongoDB cerrada');
-    }
-    process.exit(1);
+  } finally {
+    // Cerrar la conexión a MongoDB
+    await mongoose.connection.close();
+    console.log('Conexión a MongoDB cerrada');
   }
 }
 

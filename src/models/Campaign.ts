@@ -1,4 +1,5 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { sanitizeDataForAudit, getChangedFields } from '../utils/auditUtils';
 
 export interface ICampaign extends Document {
   name: string;
@@ -100,5 +101,54 @@ CampaignSchema.index({ assignedTo: 1 });
 CampaignSchema.index({ status: 1 });
 CampaignSchema.index({ startDate: 1 });
 CampaignSchema.index({ endDate: 1 });
+
+// Hook para capturar creación
+CampaignSchema.post('save', function(doc) {
+  if (doc.isNew) {
+    // Marcar el documento para auditoría de creación
+    // @ts-ignore - extender el documento con propiedades personalizadas
+    doc._auditAction = 'creación';
+    // @ts-ignore
+    doc._auditTargetType = 'campaña';
+    // @ts-ignore
+    doc._auditDescription = `Nueva campaña creada: ${doc.name}`;
+    // @ts-ignore
+    doc._auditNewData = sanitizeDataForAudit(doc);
+  }
+});
+
+// Hook para capturar información antes de actualización
+CampaignSchema.pre('findOneAndUpdate', async function() {
+  const docToUpdate = await this.model.findOne(this.getQuery());
+  // @ts-ignore - extender el query con propiedades personalizadas
+  this._originalDoc = docToUpdate;
+});
+
+// Hook para capturar información después de actualización
+CampaignSchema.post('findOneAndUpdate', async function(doc) {
+  // @ts-ignore
+  const originalDoc = this._originalDoc;
+  
+  if (doc && originalDoc) {
+    const sanitizedOldDoc = sanitizeDataForAudit(originalDoc);
+    const sanitizedNewDoc = sanitizeDataForAudit(doc);
+    const changedFields = getChangedFields(sanitizedOldDoc, sanitizedNewDoc);
+    
+    if (changedFields.length > 0) {
+      // @ts-ignore - extender el documento con propiedades personalizadas
+      doc._auditPreviousData = sanitizedOldDoc;
+      // @ts-ignore
+      doc._auditNewData = sanitizedNewDoc;
+      // @ts-ignore
+      doc._auditAction = 'actualización';
+      // @ts-ignore
+      doc._auditTargetType = 'campaña';
+      // @ts-ignore
+      doc._auditChangedFields = changedFields;
+      // @ts-ignore
+      doc._auditDescription = `Actualización de campaña: ${doc.name} (campos: ${changedFields.join(', ')})`;
+    }
+  }
+});
 
 export const Campaign = mongoose.model<ICampaign>('Campaign', CampaignSchema); 

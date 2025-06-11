@@ -16,6 +16,9 @@ import appConfigRoutes from './appConfig.routes';
 import apiKeyRoutes from './apiKey.routes';
 import leadCategoryRoutes from './lead-category.routes';
 import departmentRoutes from './department.routes';
+import employeeStatusRoutes from './employee-status.routes';
+import auditRoutes from './audit.routes';
+import scheduledNotificationRoutes from './scheduledNotification.routes';
 
 const router = Router();
 
@@ -24,6 +27,9 @@ router.use('/auth', authRoutes);
 
 // Rutas de empleados
 router.use('/employees', employeeRoutes);
+
+// Rutas de estado de empleados
+router.use('/employees', employeeStatusRoutes);
 
 // Rutas de notificaciones
 router.use('/notifications', notificationRoutes);
@@ -69,5 +75,11 @@ router.use('/leads/categories', leadCategoryRoutes);
 
 // Rutas de departamentos
 router.use('/departments', departmentRoutes);
+
+// Rutas de auditoría
+router.use('/audit', auditRoutes);
+
+// Rutas de notificaciones programadas
+router.use('/scheduled-notifications', scheduledNotificationRoutes);
 
 export default router; 

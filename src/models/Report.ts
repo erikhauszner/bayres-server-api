@@ -1,102 +1,232 @@
 import mongoose, { Document, Schema } from 'mongoose';
+import { sanitizeDataForAudit, getChangedFields } from '../utils/auditUtils';
 
 export interface IReport extends Document {
-  campaign: mongoose.Types.ObjectId;
-  startDate: Date;
-  endDate: Date;
-  type: 'daily' | 'weekly' | 'monthly' | 'custom';
-  metrics: mongoose.Types.ObjectId[];
-  statistics: {
-    totalImpressions: number;
-    totalClicks: number;
-    totalConversions: number;
-    totalRevenue: number;
-    averageCTR: number;
-    averageConversionRate: number;
-    averageRevenuePerConversion: number;
+  name: string;
+  description?: string;
+  type: 'leads' | 'clients' | 'employees' | 'projects' | 'tasks' | 'finances' | 'campaigns' | 'custom';
+  query: any;
+  fields: string[];
+  filters?: any;
+  aggregations?: any;
+  format: 'json' | 'csv' | 'excel' | 'pdf';
+  schedule?: {
+    frequency: 'once' | 'daily' | 'weekly' | 'monthly';
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+    time?: string;
+    timezone?: string;
+    isActive: boolean;
   };
-  createdBy: mongoose.Types.ObjectId;
-  notes: string;
+  recipients?: string[];
+  generatedBy: mongoose.Types.ObjectId;
+  generatedAt?: Date;
+  lastExecuted?: Date;
+  nextExecution?: Date;
+  executionCount: number;
   isActive: boolean;
+  isTemplate: boolean;
+  templateOf?: mongoose.Types.ObjectId;
+  permissions?: {
+    canView: mongoose.Types.ObjectId[];
+    canEdit: mongoose.Types.ObjectId[];
+    canExecute: mongoose.Types.ObjectId[];
+  };
+  metadata?: any;
   createdAt: Date;
   updatedAt: Date;
 }
 
 const ReportSchema = new Schema<IReport>({
-  campaign: {
-    type: Schema.Types.ObjectId,
-    ref: 'Campaign',
-    required: [true, 'La campaña es requerida']
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
-  startDate: {
-    type: Date,
-    required: [true, 'La fecha de inicio es requerida']
-  },
-  endDate: {
-    type: Date,
-    required: [true, 'La fecha de fin es requerida']
+  description: {
+    type: String,
+    trim: true
   },
   type: {
     type: String,
-    enum: ['daily', 'weekly', 'monthly', 'custom'],
-    required: [true, 'El tipo de informe es requerido']
+    enum: ['leads', 'clients', 'employees', 'projects', 'tasks', 'finances', 'campaigns', 'custom'],
+    required: true
   },
-  metrics: [{
-    type: Schema.Types.ObjectId,
-    ref: 'Metric'
+  query: {
+    type: Schema.Types.Mixed,
+    required: true
+  },
+  fields: [{
+    type: String,
+    required: true
   }],
-  statistics: {
-    totalImpressions: {
-      type: Number,
-      default: 0
+  filters: {
+    type: Schema.Types.Mixed
+  },
+  aggregations: {
+    type: Schema.Types.Mixed
+  },
+  format: {
+    type: String,
+    enum: ['json', 'csv', 'excel', 'pdf'],
+    default: 'json'
+  },
+  schedule: {
+    frequency: {
+      type: String,
+      enum: ['once', 'daily', 'weekly', 'monthly'],
+      default: 'once'
     },
-    totalClicks: {
+    dayOfWeek: {
       type: Number,
-      default: 0
+      min: 0,
+      max: 6
     },
-    totalConversions: {
+    dayOfMonth: {
       type: Number,
-      default: 0
+      min: 1,
+      max: 31
     },
-    totalRevenue: {
-      type: Number,
-      default: 0
+    time: {
+      type: String
     },
-    averageCTR: {
-      type: Number,
-      default: 0
+    timezone: {
+      type: String,
+      default: 'America/Mexico_City'
     },
-    averageConversionRate: {
-      type: Number,
-      default: 0
-    },
-    averageRevenuePerConversion: {
-      type: Number,
-      default: 0
+    isActive: {
+      type: Boolean,
+      default: false
     }
   },
-  createdBy: {
+  recipients: [{
+    type: String,
+    validate: {
+      validator: function(email: string) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+      },
+      message: 'Email inválido'
+    }
+  }],
+  generatedBy: {
     type: Schema.Types.ObjectId,
     ref: 'Employee',
-    required: [true, 'El creador es requerido']
+    required: true
   },
-  notes: {
-    type: String,
-    trim: true
+  generatedAt: {
+    type: Date
+  },
+  lastExecuted: {
+    type: Date
+  },
+  nextExecution: {
+    type: Date
+  },
+  executionCount: {
+    type: Number,
+    default: 0
   },
   isActive: {
     type: Boolean,
     default: true
+  },
+  isTemplate: {
+    type: Boolean,
+    default: false
+  },
+  templateOf: {
+    type: Schema.Types.ObjectId,
+    ref: 'Report'
+  },
+  permissions: {
+    canView: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Employee'
+    }],
+    canEdit: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Employee'
+    }],
+    canExecute: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Employee'
+    }]
+  },
+  metadata: {
+    type: Schema.Types.Mixed
   }
 }, {
   timestamps: true
 });
 
-// Índices para búsquedas eficientes
-ReportSchema.index({ campaign: 1 });
-ReportSchema.index({ startDate: 1 });
-ReportSchema.index({ endDate: 1 });
-ReportSchema.index({ type: 1 });
-ReportSchema.index({ createdBy: 1 });
+// Índices
+ReportSchema.index({ name: 1, generatedBy: 1 });
+ReportSchema.index({ type: 1, isActive: 1 });
+ReportSchema.index({ isTemplate: 1 });
+ReportSchema.index({ nextExecution: 1, 'schedule.isActive': 1 });
 
-export const Report = mongoose.model<IReport>('Report', ReportSchema); 
+// Hooks para auditoría
+
+// Hook para capturar creación
+ReportSchema.post('save', function(doc) {
+  if (doc.isNew) {
+    // @ts-ignore - extender el documento con propiedades personalizadas
+    doc._auditAction = 'creación';
+    // @ts-ignore
+    doc._auditTargetType = 'reporte';
+    // @ts-ignore
+    doc._auditDescription = `Nuevo reporte creado: ${doc.name}`;
+    // @ts-ignore
+    doc._auditNewData = sanitizeDataForAudit(doc);
+  }
+});
+
+// Hook para capturar información antes de actualización
+ReportSchema.pre('findOneAndUpdate', async function() {
+  // @ts-ignore
+  this._originalDoc = await this.model.findOne(this.getQuery());
+});
+
+// Hook para capturar información después de actualización
+ReportSchema.post('findOneAndUpdate', async function(doc) {
+  // @ts-ignore
+  const originalDoc = this._originalDoc;
+  
+  if (doc && originalDoc) {
+    const sanitizedOldDoc = sanitizeDataForAudit(originalDoc);
+    const sanitizedNewDoc = sanitizeDataForAudit(doc);
+    const changedFields = getChangedFields(sanitizedOldDoc, sanitizedNewDoc);
+    
+    if (changedFields.length > 0) {
+      // @ts-ignore - extender el documento con propiedades personalizadas
+      doc._auditPreviousData = sanitizedOldDoc;
+      // @ts-ignore
+      doc._auditNewData = sanitizedNewDoc;
+      // @ts-ignore
+      doc._auditAction = 'actualización';
+      // @ts-ignore
+      doc._auditTargetType = 'reporte';
+      // @ts-ignore
+      doc._auditChangedFields = changedFields;
+      // @ts-ignore
+      doc._auditDescription = `Actualización de reporte: ${doc.name} (campos: ${changedFields.join(', ')})`;
+    }
+  }
+});
+
+// Hook específico para ejecución de reportes
+ReportSchema.post('findOneAndUpdate', async function(doc) {
+  // @ts-ignore
+  const originalDoc = this._originalDoc;
+  
+  if (doc && originalDoc && doc.lastExecuted !== originalDoc.lastExecuted) {
+    // @ts-ignore - extender el documento con propiedades personalizadas
+    doc._auditAction = 'ejecución';
+    // @ts-ignore
+    doc._auditTargetType = 'reporte';
+    // @ts-ignore
+    doc._auditDescription = `Ejecución de reporte: ${doc.name}`;
+  }
+});
+
+export default mongoose.model<IReport>('Report', ReportSchema); 

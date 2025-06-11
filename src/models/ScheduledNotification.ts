@@ -1,21 +1,26 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { sanitizeDataForAudit, getChangedFields } from '../utils/auditUtils';
 
-export interface INotification extends Document {
+export interface IScheduledNotification extends Document {
   title: string;
   message: string;
-  type: 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system';
+  type: 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead';
   priority: 'low' | 'medium' | 'high';
-  entityType?: 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'other';
+  entityType?: 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead' | 'other';
   entityId?: string;
   employeeId: mongoose.Types.ObjectId;
+  scheduledFor: Date;
+  executed: boolean;
+  executedAt?: Date;
+  frequency?: 'once' | 'daily' | 'weekly' | 'monthly';
+  nextExecution?: Date;
   metadata?: Record<string, any>;
-  isRead: boolean;
-  readAt?: Date;
+  isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
 }
 
-const NotificationSchema = new Schema<INotification>({
+const ScheduledNotificationSchema = new Schema<IScheduledNotification>({
   title: {
     type: String,
     required: true
@@ -26,17 +31,18 @@ const NotificationSchema = new Schema<INotification>({
   },
   type: {
     type: String,
-    enum: ['task', 'client', 'event', 'employee', 'invoice', 'project', 'system'],
+    enum: ['task', 'client', 'event', 'employee', 'invoice', 'project', 'system', 'lead'],
     required: true
   },
   priority: {
     type: String,
     enum: ['low', 'medium', 'high'],
-    required: true
+    required: true,
+    default: 'medium'
   },
   entityType: {
     type: String,
-    enum: ['task', 'client', 'event', 'employee', 'invoice', 'project', 'system', 'other']
+    enum: ['task', 'client', 'event', 'employee', 'invoice', 'project', 'system', 'lead', 'other']
   },
   entityId: {
     type: String
@@ -46,52 +52,66 @@ const NotificationSchema = new Schema<INotification>({
     ref: 'Employee',
     required: true
   },
-  metadata: {
-    type: Schema.Types.Mixed
+  scheduledFor: {
+    type: Date,
+    required: true
   },
-  isRead: {
+  executed: {
     type: Boolean,
     default: false
   },
-  readAt: {
+  executedAt: {
     type: Date
   },
-  createdAt: {
-    type: Date,
-    default: Date.now
+  frequency: {
+    type: String,
+    enum: ['once', 'daily', 'weekly', 'monthly'],
+    default: 'once'
+  },
+  nextExecution: {
+    type: Date
+  },
+  metadata: {
+    type: Schema.Types.Mixed
+  },
+  isActive: {
+    type: Boolean,
+    default: true
   }
+}, {
+  timestamps: true
 });
 
-// Índices para mejorar el rendimiento de las consultas comunes
-NotificationSchema.index({ employeeId: 1, createdAt: -1 });
-NotificationSchema.index({ isRead: 1, employeeId: 1 });
-NotificationSchema.index({ type: 1, priority: 1 });
+// Índices para mejorar el rendimiento
+ScheduledNotificationSchema.index({ scheduledFor: 1, executed: 1, isActive: 1 });
+ScheduledNotificationSchema.index({ employeeId: 1, executed: 1 });
+ScheduledNotificationSchema.index({ entityType: 1, entityId: 1 });
+ScheduledNotificationSchema.index({ nextExecution: 1, isActive: 1 });
 
 // Hooks para auditoría
 
 // Hook para capturar creación
-NotificationSchema.post('save', function(doc) {
+ScheduledNotificationSchema.post('save', function(doc) {
   if (doc.isNew) {
-    // Marcar el documento para auditoría de creación
     // @ts-ignore - extender el documento con propiedades personalizadas
     doc._auditAction = 'creación';
     // @ts-ignore
     doc._auditTargetType = 'notificación';
     // @ts-ignore
-    doc._auditDescription = `Nueva notificación creada: ${doc.title}`;
+    doc._auditDescription = `Nueva notificación programada: ${doc.title}`;
     // @ts-ignore
     doc._auditNewData = sanitizeDataForAudit(doc);
   }
 });
 
 // Hook para capturar información antes de actualización
-NotificationSchema.pre('findOneAndUpdate', async function() {
+ScheduledNotificationSchema.pre('findOneAndUpdate', async function() {
   // @ts-ignore
   this._originalDoc = await this.model.findOne(this.getQuery());
 });
 
 // Hook para capturar información después de actualización
-NotificationSchema.post('findOneAndUpdate', async function(doc) {
+ScheduledNotificationSchema.post('findOneAndUpdate', async function(doc) {
   // @ts-ignore
   const originalDoc = this._originalDoc;
   
@@ -112,24 +132,24 @@ NotificationSchema.post('findOneAndUpdate', async function(doc) {
       // @ts-ignore
       doc._auditChangedFields = changedFields;
       // @ts-ignore
-      doc._auditDescription = `Actualización de notificación: ${doc.title} (campos: ${changedFields.join(', ')})`;
+      doc._auditDescription = `Actualización de notificación programada: ${doc.title} (campos: ${changedFields.join(', ')})`;
     }
   }
 });
 
-// Hook específico para marcar como leída
-NotificationSchema.post('findOneAndUpdate', async function(doc) {
+// Hook específico para ejecución de notificaciones
+ScheduledNotificationSchema.post('findOneAndUpdate', async function(doc) {
   // @ts-ignore
   const originalDoc = this._originalDoc;
   
-  if (doc && originalDoc && doc.isRead !== originalDoc.isRead && doc.isRead) {
+  if (doc && originalDoc && doc.executed !== originalDoc.executed && doc.executed) {
     // @ts-ignore - extender el documento con propiedades personalizadas
-    doc._auditAction = 'actualización';
+    doc._auditAction = 'ejecución';
     // @ts-ignore
     doc._auditTargetType = 'notificación';
     // @ts-ignore
-    doc._auditDescription = `Notificación marcada como leída: ${doc.title}`;
+    doc._auditDescription = `Ejecución de notificación programada: ${doc.title}`;
   }
 });
 
-export default mongoose.model<INotification>('Notification', NotificationSchema); 
+export default mongoose.model<IScheduledNotification>('ScheduledNotification', ScheduledNotificationSchema); 

@@ -206,6 +206,13 @@ const permissions = [
     action: 'edit_stage',
     isActive: true
   },
+  {
+    name: 'leads:follow_up',
+    description: 'Agendar seguimiento de leads',
+    module: 'leads',
+    action: 'follow_up',
+    isActive: true
+  },
 
   // Permisos de proyectos
   {
@@ -505,12 +512,86 @@ const permissions = [
     isActive: true
   },
 
+  // Permisos de monitoreo
+  {
+    name: 'monitoring:read',
+    description: 'Ver monitoreo de empleados',
+    module: 'monitoring',
+    action: 'read',
+    isActive: true
+  },
+  {
+    name: 'monitoring:update',
+    description: 'Actualizar estado de monitoreo de empleados',
+    module: 'monitoring',
+    action: 'update',
+    isActive: true
+  },
+  {
+    name: 'monitoring:view_tab',
+    description: 'Ver pestaña de Monitoreo',
+    module: 'monitoring',
+    action: 'view_tab',
+    isActive: true
+  },
+
   // Permisos para pestañas del sidebar
   {
     name: 'dashboard:view_tab',
     description: 'Ver pestaña de Dashboard',
     module: 'dashboard',
     action: 'view_tab',
+    isActive: true
+  },
+
+  // Permisos para cards del dashboard
+  {
+    name: 'dashboard:empleados_online',
+    description: 'Ver card de Empleados Online en Dashboard',
+    module: 'dashboard',
+    action: 'empleados_online',
+    isActive: true
+  },
+  {
+    name: 'dashboard:leads_asignados',
+    description: 'Ver card de Leads Asignados en Dashboard',
+    module: 'dashboard',
+    action: 'leads_asignados',
+    isActive: true
+  },
+  {
+    name: 'dashboard:tareas_pendientes',
+    description: 'Ver card de Tareas Pendientes en Dashboard',
+    module: 'dashboard',
+    action: 'tareas_pendientes',
+    isActive: true
+  },
+  {
+    name: 'dashboard:actividad_reciente',
+    description: 'Ver card de Actividad Reciente en Dashboard',
+    module: 'dashboard',
+    action: 'actividad_reciente',
+    isActive: true
+  },
+  {
+    name: 'dashboard:proximas_notificaciones',
+    description: 'Ver card de Próximas Notificaciones en Dashboard',
+    module: 'dashboard',
+    action: 'proximas_notificaciones',
+    isActive: true
+  },
+  {
+    name: 'dashboard:leads_por_revisar',
+    description: 'Ver card de Leads por Revisar en Dashboard',
+    module: 'dashboard',
+    action: 'leads_por_revisar',
+    isActive: true
+  },
+  {
+    name: 'dashboard:leads_por_asignar',
+    description: 'Ver card de Leads por Asignar en Dashboard',
+    module: 'dashboard',
+    action: 'leads_por_asignar',
     isActive: true
   },
   {

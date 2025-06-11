@@ -1,4 +1,5 @@
 import mongoose, { Schema, Document } from 'mongoose';
+import { sanitizeDataForAudit, getChangedFields } from '../../utils/auditUtils';
 
 export type TransactionType = 'income' | 'expense' | 'transfer';
 export type TransactionStatus = 'pending' | 'completed' | 'failed' | 'cancelled';
@@ -102,5 +103,54 @@ TransactionSchema.index({ status: 1 });
 TransactionSchema.index({ accountId: 1 });
 TransactionSchema.index({ projectId: 1 });
 TransactionSchema.index({ employeeId: 1 });
+
+// Hook para capturar creación
+TransactionSchema.post('save', function(doc) {
+  if (doc.isNew) {
+    // Marcar el documento para auditoría de creación
+    // @ts-ignore - extender el documento con propiedades personalizadas
+    doc._auditAction = 'creación';
+    // @ts-ignore
+    doc._auditTargetType = 'transacción';
+    // @ts-ignore
+    doc._auditDescription = `Nueva transacción creada: ${doc.type} - $${doc.amount}`;
+    // @ts-ignore
+    doc._auditNewData = sanitizeDataForAudit(doc);
+  }
+});
+
+// Hook para capturar información antes de actualización
+TransactionSchema.pre('findOneAndUpdate', async function() {
+  const docToUpdate = await this.model.findOne(this.getQuery());
+  // @ts-ignore - extender el query con propiedades personalizadas
+  this._originalDoc = docToUpdate;
+});
+
+// Hook para capturar información después de actualización
+TransactionSchema.post('findOneAndUpdate', async function(doc) {
+  // @ts-ignore
+  const originalDoc = this._originalDoc;
+  
+  if (doc && originalDoc) {
+    const sanitizedOldDoc = sanitizeDataForAudit(originalDoc);
+    const sanitizedNewDoc = sanitizeDataForAudit(doc);
+    const changedFields = getChangedFields(sanitizedOldDoc, sanitizedNewDoc);
+    
+    if (changedFields.length > 0) {
+      // @ts-ignore - extender el documento con propiedades personalizadas
+      doc._auditPreviousData = sanitizedOldDoc;
+      // @ts-ignore
+      doc._auditNewData = sanitizedNewDoc;
+      // @ts-ignore
+      doc._auditAction = 'actualización';
+      // @ts-ignore
+      doc._auditTargetType = 'transacción';
+      // @ts-ignore
+      doc._auditChangedFields = changedFields;
+      // @ts-ignore
+      doc._auditDescription = `Actualización de transacción: ${doc.type} - $${doc.amount} (campos: ${changedFields.join(', ')})`;
+    }
+  }
+});
 
 export const Transaction = mongoose.model<ITransaction>('Transaction', TransactionSchema); 

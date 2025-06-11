@@ -14,11 +14,22 @@ import fs from 'fs';
 
 const app = express();
 
+// Definir orígenes permitidos según el entorno
+const isProduction = process.env.NODE_ENV === 'production';
+const clientUrl = process.env.CLIENT_URL || 'http://localhost:3001';
+const apiUrl = process.env.API_URL || 'http://localhost:3000';
+
+// Orígenes permitidos para CORS
+const productionOrigins = ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'];
+const developmentOrigins = ['http://localhost:3001', 'http://localhost:3000'];
+
+// Registrar los orígenes permitidos para depuración
+console.log('Modo:', isProduction ? 'producción' : 'desarrollo');
+console.log('Orígenes CORS permitidos:', isProduction ? productionOrigins : developmentOrigins);
+
 // Crear middleware CORS específico para rutas públicas
 const corsMiddleware = cors({
-  origin: process.env.NODE_ENV === 'production' 
-    ? ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com']
-    : ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'],
+  origin: isProduction ? productionOrigins : developmentOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
