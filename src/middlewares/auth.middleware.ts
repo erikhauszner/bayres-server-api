@@ -18,7 +18,7 @@ export const authMiddleware = async (req: Request, res: Response, next: NextFunc
       return;
     }
 
-    const employee = await AuthService.validateToken(token);
+    const { employee } = await AuthService.validateToken(token);
     req.employee = employee;
     next();
   } catch (error: any) {

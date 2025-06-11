@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { CronService } from '../services/cronService';
-import { ScheduledNotificationService } from '../services/scheduledNotificationService';
+import { ScheduledNotificationService } from '../services/scheduledNotification.service';
 import ScheduledNotification from '../models/ScheduledNotification';
 
 interface RequestWithUser extends Request {

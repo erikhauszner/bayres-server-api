@@ -1,5 +1,5 @@
 import * as cron from 'node-cron';
-import { ScheduledNotificationService } from './scheduledNotificationService';
+import { ScheduledNotificationService } from './scheduledNotification.service';
 
 export class CronService {
   private static jobs: Map<string, cron.ScheduledTask> = new Map();

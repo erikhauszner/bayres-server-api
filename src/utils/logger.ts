@@ -1,6 +1,6 @@
 import fs from 'fs';
 import path from 'path';
-import { createLogger, format, transports, Logger as WinstonLogger } from 'winston';
+import winston, { createLogger, format, transports } from 'winston';
 
 // Determinar si estamos en entorno de producción
 const isProduction = process.env.NODE_ENV === 'production';
@@ -28,7 +28,7 @@ const logFormat = format.printf((info) => {
 });
 
 // Crear instancia del logger
-const logger: WinstonLogger = createLogger({
+const logger: winston.Logger = createLogger({
   level: isProduction ? 'info' : 'debug',
   format: format.combine(
     format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),

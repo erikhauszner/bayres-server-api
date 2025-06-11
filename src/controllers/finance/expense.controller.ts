@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Expense, IExpense, ExpenseCategory } from '../../models/Finance';
 import { Project } from '../../models/Project';
-import { ProjectTask } from '../../models/ProjectTask';
+import ProjectTask from '../../models/ProjectTask';
 
 // Extender la interfaz Request para incluir el campo file
 interface RequestWithFile extends Request {

@@ -100,7 +100,7 @@ export const authenticateToken: RequestHandler = async (req, res, next) => {
 
       // Los permisos ya fueron cargados por AuthService.validateToken()
       // Solo asignar el empleado a la solicitud
-      req.employee = employee;
+      req.employee = employee as IEmployee;
       
       next();
     } catch (error) {

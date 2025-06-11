@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import { ProjectTaskComment } from '../models/ProjectTaskComment';
-import { ProjectTask } from '../models/ProjectTask';
+import ProjectTask from '../models/ProjectTask';
 import { Project } from '../models/Project';
 
 // Obtener todos los comentarios de una tarea

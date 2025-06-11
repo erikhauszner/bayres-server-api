@@ -1,6 +1,6 @@
 import ScheduledNotification, { IScheduledNotification } from '../models/ScheduledNotification';
 import { NotificationService } from './notification.service';
-import Lead from '../models/Lead';
+import { Lead } from '../models/Lead';
 import Employee from '../models/Employee';
 import mongoose from 'mongoose';
 
@@ -64,20 +64,28 @@ export class ScheduledNotificationService {
       for (const notification of notifications) {
         try {
           // Crear la notificación real
-          await NotificationService.create({
+          const notificationData: any = {
             title: notification.title,
             message: notification.message,
             type: notification.type,
             priority: notification.priority,
-            entityType: notification.entityType,
-            entityId: notification.entityId,
-            employeeId: notification.employeeId.toString(),
+            employeeId: notification.employeeId?.toString() || '',
             metadata: {
               ...notification.metadata,
               isScheduledNotification: true,
               originalScheduledFor: notification.scheduledFor
             }
-          });
+          };
+          
+          if (notification.entityType) {
+            notificationData.entityType = notification.entityType;
+          }
+          
+          if (notification.entityId) {
+            notificationData.entityId = notification.entityId;
+          }
+          
+          await NotificationService.create(notificationData);
 
           // Marcar como ejecutada
           notification.executed = true;
@@ -85,7 +93,7 @@ export class ScheduledNotificationService {
 
           // Si es recurrente, programar la siguiente ejecución
           if (notification.frequency !== 'once') {
-            const nextExecution = this.calculateNextExecution(notification.scheduledFor, notification.frequency);
+            const nextExecution = this.calculateNextExecution(notification.scheduledFor, notification.frequency || 'once');
             
             // Crear una nueva notificación programada para la siguiente ejecución
             await this.create({
@@ -146,7 +154,7 @@ export class ScheduledNotificationService {
         // Verificar si ya existe una notificación programada para este lead hoy
         const existingNotification = await ScheduledNotification.findOne({
           entityType: 'lead',
-          entityId: lead._id.toString(),
+          entityId: (lead as any)._id.toString(),
           scheduledFor: { $gte: todayStart, $lt: todayEnd },
           executed: false,
           type: 'lead'
@@ -154,7 +162,7 @@ export class ScheduledNotificationService {
 
         if (!existingNotification && lead.assignedTo) {
           // Encontrar el seguimiento programado para hoy
-          const todayFollowUp = lead.interactionHistory?.find(interaction => {
+          const todayFollowUp = lead.interactionHistory?.find((interaction: any) => {
             const interactionDate = new Date(interaction.date);
             return interactionDate >= todayStart && 
                    interactionDate < todayEnd && 
@@ -169,11 +177,11 @@ export class ScheduledNotificationService {
               type: 'lead',
               priority: 'high',
               entityType: 'lead',
-              entityId: lead._id.toString(),
+              entityId: (lead as any)._id.toString(),
               employeeId: (lead.assignedTo as any)._id.toString(),
               scheduledFor: todayFollowUp.date,
               metadata: {
-                leadId: lead._id.toString(),
+                leadId: (lead as any)._id.toString(),
                 leadName: `${lead.firstName} ${lead.lastName}`,
                 company: lead.company,
                 followUpNote: todayFollowUp.description,
@@ -343,11 +351,13 @@ export class ScheduledNotificationService {
           });
 
           if (!existingNotification) {
-            const daysUntilDue = Math.ceil((invoice.dueDate - now) / (1000 * 60 * 60 * 24));
+            const dueDate = new Date(invoice.dueDate);
+            const timeDiff = dueDate.getTime() - now.getTime();
+            const daysUntilDue = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
             
             await this.create({
               title: `💰 Factura Próxima a Vencer`,
-              message: `La factura #${invoice.number} vence en ${daysUntilDue} día${daysUntilDue !== 1 ? 's' : ''} (${invoice.dueDate.toLocaleDateString()})`,
+              message: `La factura #${invoice.number} vence en ${daysUntilDue} día${daysUntilDue !== 1 ? 's' : ''} (${dueDate.toLocaleDateString()})`,
               type: 'invoice',
               priority: daysUntilDue <= 3 ? 'high' : 'medium',
               entityType: 'invoice',

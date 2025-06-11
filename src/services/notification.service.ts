@@ -2,8 +2,8 @@ import Employee, { IEmployee } from '../models/Employee';
 import Notification, { INotification } from '../models/Notification';
 import { io } from '../server';
 
-type NotificationType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system';
-type EntityType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'other';
+type NotificationType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead';
+type EntityType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead' | 'other';
 type Priority = 'low' | 'normal' | 'high';
 
 // Interfaz para la creación de notificaciones
