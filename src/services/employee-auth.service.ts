@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { IEmployee } from '../models/Employee';
 import mongoose from 'mongoose';
 import { PermissionService } from './permission.service';
+import { SessionCleanupService } from './session-cleanup.service';
 import Logger from '../utils/logger';
 
 export class AuthService {
@@ -84,9 +85,11 @@ export class AuthService {
       throw new Error('Cuenta inactiva');
     }
 
-    // Obtener permisos utilizando el servicio unificado
+    // **LIMPIEZA AUTOMÁTICA**: Eliminar sesiones expiradas del usuario antes del nuevo login
     try {
       const employeeId = String(employee._id);
+      await SessionCleanupService.cleanupUserExpiredSessions(employeeId);
+      
       const permissions = await PermissionService.getEmployeePermissions(employeeId);
 
       const token = jwt.sign(
@@ -96,16 +99,16 @@ export class AuthService {
           permissions
         },
         this.getJwtSecret(),
-        { expiresIn: '24h' }
+        { expiresIn: '72h' }
       );
 
       // Actualizar último acceso
       employee.lastLogin = new Date();
       await employee.save();
       
-      // Crear o actualizar sesión
+      // Crear nueva sesión (las expiradas ya fueron eliminadas)
       const expirationDate = new Date();
-      expirationDate.setHours(expirationDate.getHours() + 24); // 24 horas
+      expirationDate.setHours(expirationDate.getHours() + 72);
       
       const session = await Session.create({
         userId: employee._id,
@@ -118,7 +121,7 @@ export class AuthService {
         isActive: true
       });
       
-      Logger.auth('Login exitoso', {
+      Logger.auth('Login exitoso con limpieza automática', {
         employeeId: employee._id,
         sessionId: session._id,
         expirationDate
@@ -136,7 +139,7 @@ export class AuthService {
           permissions: []
         },
         this.getJwtSecret(),
-        { expiresIn: '24h' }
+        { expiresIn: '72h' }
       );
       
       // Actualizar último acceso
@@ -145,7 +148,7 @@ export class AuthService {
       
       // Crear o actualizar sesión
       const expirationDate = new Date();
-      expirationDate.setHours(expirationDate.getHours() + 24); // 24 horas
+      expirationDate.setHours(expirationDate.getHours() + 72);
       
       const session = await Session.create({
         userId: employee._id,
@@ -171,6 +174,15 @@ export class AuthService {
   static async validateToken(token: string): Promise<{ employee: IEmployee; newToken?: string }> {
     try {
       const jwtSecret = this.getJwtSecret();
+      
+      // **LIMPIEZA OCASIONAL**: Solo ejecutar limpieza cada cierto tiempo (no en cada validación)
+      // Esto evita que sea demasiado agresivo
+      const shouldCleanup = Math.random() < 0.1; // 10% de probabilidad
+      if (shouldCleanup) {
+        Logger.debug('Ejecutando limpieza ocasional de sesiones durante validación de token');
+        await SessionCleanupService.cleanupExpiredSessions();
+      }
+      
       const decoded = jwt.verify(token, jwtSecret) as { employeeId: string; role: string; permissions?: string[]; iat: number; exp: number };
 
       const employee = await Employee.findById(decoded.employeeId);
@@ -179,7 +191,7 @@ export class AuthService {
         throw new Error('Empleado no encontrado');
       }
       
-      // Verificar si existe una sesión activa
+      // Verificar si existe una sesión activa (después de la limpieza)
       const session = await Session.findOne({
         token,
         isActive: true,
@@ -187,7 +199,12 @@ export class AuthService {
       });
       
       if (!session) {
-        Logger.warn('Sesión inválida o expirada', { employeeId: decoded.employeeId });
+        // Limpiar específicamente las sesiones de este usuario si no se encontró la sesión
+        await SessionCleanupService.cleanupUserExpiredSessions(decoded.employeeId);
+        Logger.warn('Sesión inválida o expirada - limpieza de usuario ejecutada', { 
+          employeeId: decoded.employeeId,
+          tokenProvided: !!token
+        });
         throw new Error('Sesión inválida o expirada');
       }
       
@@ -197,10 +214,10 @@ export class AuthService {
       const timeUntilExpiry = tokenExpiry.getTime() - now.getTime();
       const hoursUntilExpiry = timeUntilExpiry / (1000 * 60 * 60);
       
-      // MEJORADO: Renovar token si queda menos de 12 horas (50% del tiempo)
-      // Y siempre renovar sesiones de más de 3 días para usuarios activos
-      const shouldRenewToken = hoursUntilExpiry < 12 || 
-                              (now.getTime() - session.createdAt.getTime()) > (3 * 24 * 60 * 60 * 1000);
+      // MEJORADO: Renovar token si queda menos de 24 horas (33% del tiempo de 72h)
+      // Y siempre renovar sesiones de más de 2 días para usuarios activos
+      const shouldRenewToken = hoursUntilExpiry < 24 || 
+                              (now.getTime() - session.createdAt.getTime()) > (2 * 24 * 60 * 60 * 1000);
       
       if (shouldRenewToken) {
         try {
@@ -216,12 +233,12 @@ export class AuthService {
               permissions
             },
             jwtSecret,
-            { expiresIn: '24h' }
+            { expiresIn: '72h' }
           );
           
           // Actualizar sesión con el nuevo token y nueva expiración
           const newExpirationDate = new Date();
-          newExpirationDate.setHours(newExpirationDate.getHours() + 24);
+          newExpirationDate.setHours(newExpirationDate.getHours() + 72);
           
           // Actualizar la sesión existente con el nuevo token
           session.token = newToken;
@@ -247,12 +264,17 @@ export class AuthService {
         }
       }
 
-      // Cargar permisos si no los tiene y no se renovó el token
-      if (!newToken && (!Array.isArray(employee.permissions) || employee.permissions.length === 0)) {
+      // SIEMPRE cargar permisos si no se renovó el token (para asegurar permisos actualizados)
+      if (!newToken) {
         try {
           const employeeId = String(employee._id);
           const permissions = await PermissionService.getEmployeePermissions(employeeId);
           (employee as any).permissions = permissions;
+          
+          Logger.debug('Permisos recargados en validación de token', { 
+            employeeId: employee._id,
+            permissionsCount: permissions.length
+          });
         } catch (error) {
           Logger.warn('No se pudieron cargar los permisos durante la validación del token', { 
             employeeId: employee._id,
@@ -304,29 +326,32 @@ export class AuthService {
           Logger.debug('Hora de cierre de sesión actualizada', { employeeId: decoded.employeeId });
         }
         
-        // Marcar la sesión como inactiva
-        const updatedSession = await Session.findOneAndUpdate(
-          { token, isActive: true },
-          { isActive: false },
-          { new: true }
-        );
+        // **DESACTIVAR TODAS LAS SESIONES DEL USUARIO** (logout completo)
+        const deactivatedCount = await SessionCleanupService.deactivateAllUserSessions(decoded.employeeId);
         
-        if (updatedSession) {
-          Logger.debug('Sesión marcada como inactiva', { 
-            sessionId: updatedSession._id,
-            employeeId: decoded.employeeId
-          });
-        } else {
-          Logger.warn('No se encontró una sesión activa con el token proporcionado', { 
-            employeeId: decoded.employeeId 
-          });
-        }
+        // **LIMPIAR INMEDIATAMENTE** las sesiones desactivadas
+        const cleanedCount = await SessionCleanupService.cleanupUserExpiredSessions(decoded.employeeId);
+        
+        Logger.info('Logout completo ejecutado', { 
+          employeeId: decoded.employeeId,
+          deactivatedSessions: deactivatedCount,
+          cleanedSessions: cleanedCount
+        });
       }
     } catch (error) {
-      // Si hay error con el token, simplemente registramos y continuamos
-      Logger.warn('Error al procesar logout', { 
+      // Si hay error con el token, aún intentar limpiar por si acaso
+      Logger.warn('Error al procesar logout, intentando limpieza general', { 
         error: error instanceof Error ? error.message : String(error) 
       });
+      
+      // Hacer limpieza general de sesiones expiradas
+      try {
+        await SessionCleanupService.cleanupExpiredSessions();
+        Logger.debug('Limpieza general ejecutada durante logout con error');
+      } catch (cleanupError) {
+        Logger.error('Error en limpieza durante logout', cleanupError);
+      }
+      
       // No lanzamos el error para permitir que el cliente continúe con el proceso de logout
     }
   }

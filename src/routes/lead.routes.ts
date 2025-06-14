@@ -108,6 +108,26 @@ router.put('/:id/tasks/:taskId',
   LeadController.updateTask as RequestHandler
 );
 
+router.put('/:id/tasks/:taskId/status', 
+  checkPermissions(['leads:edit_task']) as RequestHandler,
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'actualizar_estado_tarea',
+    getDescription: (req) => `Actualización de estado de tarea en lead: ${req.params.id} (ID: ${req.params.taskId})`
+  }) as any,
+  LeadController.updateTaskStatus as RequestHandler
+);
+
+router.put('/:id/tasks/:taskId/assign', 
+  checkPermissions(['leads:edit_task']) as RequestHandler,
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'asignar_tarea',
+    getDescription: (req) => `Asignación de tarea en lead: ${req.params.id} (ID: ${req.params.taskId}) ${req.body.assignedTo ? `a empleado: ${req.body.assignedTo}` : '(desasignado)'}`
+  }) as any,
+  LeadController.assignTask as RequestHandler
+);
+
 router.delete('/:id/tasks/:taskId', 
   checkPermissions(['leads:delete_task']) as RequestHandler,
   auditUpdate('lead', {
@@ -129,7 +149,7 @@ router.post('/:id/notes',
   LeadController.addNote as RequestHandler
 );
 
-router.put('/:id/notes', 
+router.put('/:id/notes/:noteId', 
   checkPermissions(['leads:edit_note']) as RequestHandler, 
   auditUpdate('lead', {
     module: 'leads',
@@ -139,7 +159,7 @@ router.put('/:id/notes',
   LeadController.updateNote as RequestHandler
 );
 
-router.delete('/:id/notes', 
+router.delete('/:id/notes/:noteId', 
   checkPermissions(['leads:delete_note']) as RequestHandler, 
   auditUpdate('lead', {
     module: 'leads',
@@ -211,6 +231,22 @@ router.put('/:id/assign',
     getNewData: (req) => ({ assignedTo: req.body.assignedTo })
   }) as any,
   LeadController.assignLead as RequestHandler
+);
+
+router.patch('/:id/unassign', 
+  checkPermissions(['leads:unassign']) as RequestHandler, 
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'desasignación',
+    getDescription: (req) => `Desasignación de lead: ${req.params.id}`,
+    getPreviousData: async (req) => {
+      const { Lead } = require('../models/Lead');
+      const lead = await Lead.findById(req.params.id);
+      return { assignedTo: lead?.assignedTo };
+    },
+    getNewData: (req) => ({ assignedTo: null })
+  }) as any,
+  LeadController.unassignLead as RequestHandler
 );
 
 router.put('/:id/approve', 
@@ -301,6 +337,88 @@ router.post('/batch',
 router.get('/count/by-employee/:employeeId',
   checkPermissions(['leads:read']) as RequestHandler,
   LeadController.getLeadsCountByEmployee as RequestHandler
+);
+
+// Anular lead
+router.put('/:id/annul', 
+  checkPermissions(['leads:annul_lead']) as RequestHandler, 
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'anulación',
+    getDescription: (req) => `Anulación de lead: ${req.params.id} (Motivo: ${req.body.reason || 'No especificado'})`,
+    getPreviousData: async (req) => {
+      const { Lead } = require('../models/Lead');
+      const lead = await Lead.findById(req.params.id);
+      return { status: lead?.status, assignedTo: lead?.assignedTo };
+    },
+    getNewData: (req) => ({ status: 'anulado', assignedTo: null })
+  }) as any,
+  LeadController.annulLead as RequestHandler
+);
+
+// Rutas específicas para cambios de stage
+router.put('/:id/mark-contacted', 
+  checkPermissions(['leads:mark_contacted']) as RequestHandler, 
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'marcar_contactado',
+    getDescription: (req) => `Lead marcado como contactado: ${req.params.id}`,
+    getPreviousData: async (req) => {
+      const { Lead } = require('../models/Lead');
+      const lead = await Lead.findById(req.params.id);
+      return { currentStage: lead?.currentStage };
+    },
+    getNewData: (req) => ({ currentStage: 'Contactado' })
+  }) as any,
+  LeadController.markAsContacted as RequestHandler
+);
+
+router.put('/:id/schedule-follow-up-stage', 
+  checkPermissions(['leads:schedule_follow_up']) as RequestHandler, 
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'agendar_seguimiento_stage',
+    getDescription: (req) => `Lead movido a pendiente seguimiento: ${req.params.id}`,
+    getPreviousData: async (req) => {
+      const { Lead } = require('../models/Lead');
+      const lead = await Lead.findById(req.params.id);
+      return { currentStage: lead?.currentStage };
+    },
+    getNewData: (req) => ({ currentStage: 'Pendiente Seguimiento' })
+  }) as any,
+  LeadController.scheduleFollowUpStage as RequestHandler
+);
+
+router.put('/:id/set-agenda-pending', 
+  checkPermissions(['leads:set_agenda_pending']) as RequestHandler, 
+  auditUpdate('lead', {
+    module: 'leads',
+    action: 'agenda_pendiente',
+    getDescription: (req) => `Lead movido a agenda pendiente: ${req.params.id}`,
+    getPreviousData: async (req) => {
+      const { Lead } = require('../models/Lead');
+      const lead = await Lead.findById(req.params.id);
+      return { currentStage: lead?.currentStage };
+    },
+    getNewData: (req) => ({ currentStage: 'Agenda Pendiente' })
+  }) as any,
+  LeadController.setAgendaPending as RequestHandler
+);
+
+// Rutas para seguimientos
+router.post('/:id/follow-ups',
+  checkPermissions(['leads:update']) as RequestHandler,
+  LeadController.createFollowUp as RequestHandler
+);
+
+router.put('/:id/follow-ups/:followUpId/status',
+  checkPermissions(['leads:update']) as RequestHandler,
+  LeadController.updateFollowUpStatus as RequestHandler
+);
+
+router.put('/:id/follow-ups/:followUpId',
+  checkPermissions(['leads:update']) as RequestHandler,
+  LeadController.updateFollowUp as RequestHandler
 );
 
 export default router; 

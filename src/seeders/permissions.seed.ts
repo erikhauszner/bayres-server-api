@@ -193,6 +193,13 @@ const permissions = [
     isActive: true
   },
   {
+    name: 'leads:unassign',
+    description: 'Desasignar leads',
+    module: 'leads',
+    action: 'unassign',
+    isActive: true
+  },
+  {
     name: 'leads:auto_assign',
     description: 'Auto-asignarse leads al crearlos',
     module: 'leads',
@@ -211,6 +218,35 @@ const permissions = [
     description: 'Agendar seguimiento de leads',
     module: 'leads',
     action: 'follow_up',
+    isActive: true
+  },
+  // Permisos específicos para botones de cambio de stage
+  {
+    name: 'leads:mark_contacted',
+    description: 'Marcar lead como contactado',
+    module: 'leads',
+    action: 'mark_contacted',
+    isActive: true
+  },
+  {
+    name: 'leads:schedule_follow_up',
+    description: 'Agendar seguimiento desde stage contactado',
+    module: 'leads',
+    action: 'schedule_follow_up',
+    isActive: true
+  },
+  {
+    name: 'leads:set_agenda_pending',
+    description: 'Cambiar stage a agenda pendiente',
+    module: 'leads',
+    action: 'set_agenda_pending',
+    isActive: true
+  },
+  {
+    name: 'leads:move_to_opportunities',
+    description: 'Mover lead a oportunidades',
+    module: 'leads',
+    action: 'move_to_opportunities',
     isActive: true
   },
 
@@ -422,6 +458,64 @@ const permissions = [
     isActive: true
   },
 
+  // Permisos de automatizaciones
+  {
+    name: 'automations:read',
+    description: 'Ver automatizaciones',
+    module: 'automations',
+    action: 'read',
+    isActive: true
+  },
+  {
+    name: 'automations:create',
+    description: 'Crear automatizaciones',
+    module: 'automations',
+    action: 'create',
+    isActive: true
+  },
+  {
+    name: 'automations:update',
+    description: 'Editar automatizaciones',
+    module: 'automations',
+    action: 'update',
+    isActive: true
+  },
+  {
+    name: 'automations:delete',
+    description: 'Eliminar automatizaciones',
+    module: 'automations',
+    action: 'delete',
+    isActive: true
+  },
+  {
+    name: 'automations:activate',
+    description: 'Activar/desactivar automatizaciones',
+    module: 'automations',
+    action: 'activate',
+    isActive: true
+  },
+  {
+    name: 'automations:duplicate',
+    description: 'Duplicar automatizaciones',
+    module: 'automations',
+    action: 'duplicate',
+    isActive: true
+  },
+  {
+    name: 'automations:stats',
+    description: 'Ver estadísticas de automatizaciones',
+    module: 'automations',
+    action: 'stats',
+    isActive: true
+  },
+  {
+    name: 'automations:submit',
+    description: 'Enviar formularios de automatizaciones',
+    module: 'automations',
+    action: 'submit',
+    isActive: true
+  },
+
   // Permisos de campañas
   {
     name: 'campaigns:read',
@@ -595,10 +689,31 @@ const permissions = [
     isActive: true
   },
   {
+    name: 'dashboard:mis_oportunidades',
+    description: 'Ver card de Mis Oportunidades en Dashboard',
+    module: 'dashboard',
+    action: 'mis_oportunidades',
+    isActive: true
+  },
+  {
+    name: 'dashboard:oportunidades_activas',
+    description: 'Ver card de Oportunidades Activas en Dashboard',
+    module: 'dashboard',
+    action: 'oportunidades_activas',
+    isActive: true
+  },
+  {
     name: 'leads:view_tab',
     description: 'Ver pestaña de Leads',
     module: 'leads',
     action: 'view_tab',
+    isActive: true
+  },
+  {
+    name: 'leads:stage_edit_appsetters',
+    description: 'Editar etapas de Leads (Setters)',
+    module: 'leads',
+    action: 'stage_edit_appsetters',
     isActive: true
   },
   {
@@ -623,9 +738,9 @@ const permissions = [
     isActive: true
   },
   {
-    name: 'apps:view_tab',
-    description: 'Ver pestaña de Apps',
-    module: 'apps',
+    name: 'automations:view_tab',
+    description: 'Ver pestaña de Automatizaciones',
+    module: 'automations',
     action: 'view_tab',
     isActive: true
   },
@@ -771,6 +886,100 @@ const permissions = [
     description: 'Eliminar nota en perfil de lead',
     module: 'leads',
     action: 'delete_note',
+    isActive: true
+  },
+  // Permiso para anular leads
+  {
+    name: 'leads:annul_lead',
+    description: 'Anular lead',
+    module: 'leads',
+    action: 'annul_lead',
+    isActive: true
+  },
+
+  // Permisos de oportunidades
+  {
+    name: 'opportunities:read',
+    description: 'Ver oportunidades',
+    module: 'opportunities',
+    action: 'read',
+    isActive: true
+  },
+  {
+    name: 'opportunities:create',
+    description: 'Crear oportunidades',
+    module: 'opportunities',
+    action: 'create',
+    isActive: true
+  },
+  {
+    name: 'opportunities:update',
+    description: 'Actualizar oportunidades',
+    module: 'opportunities',
+    action: 'update',
+    isActive: true
+  },
+  {
+    name: 'opportunities:delete',
+    description: 'Eliminar oportunidades',
+    module: 'opportunities',
+    action: 'delete',
+    isActive: true
+  },
+  {
+    name: 'opportunities:assign',
+    description: 'Asignar oportunidades a vendedores',
+    module: 'opportunities',
+    action: 'assign',
+    isActive: true
+  },
+  {
+    name: 'opportunities:unassign',
+    description: 'Desasignar oportunidades de vendedores',
+    module: 'opportunities',
+    action: 'unassign',
+    isActive: true
+  },
+  {
+    name: 'opportunities:transfer',
+    description: 'Transferir leads a oportunidades',
+    module: 'opportunities',
+    action: 'transfer',
+    isActive: true
+  },
+  {
+    name: 'opportunities:comment',
+    description: 'Comentar en oportunidades',
+    module: 'opportunities',
+    action: 'comment',
+    isActive: true
+  },
+  {
+    name: 'opportunities:view_all',
+    description: 'Ver todas las oportunidades (managers)',
+    module: 'opportunities',
+    action: 'view_all',
+    isActive: true
+  },
+  {
+    name: 'opportunities:view_own',
+    description: 'Ver solo oportunidades propias',
+    module: 'opportunities',
+    action: 'view_own',
+    isActive: true
+  },
+  {
+    name: 'opportunities:close',
+    description: 'Cerrar oportunidades',
+    module: 'opportunities',
+    action: 'close',
+    isActive: true
+  },
+  {
+    name: 'opportunities:view_tab',
+    description: 'Ver pestaña de Oportunidades',
+    module: 'opportunities',
+    action: 'view_tab',
     isActive: true
   }
 ];

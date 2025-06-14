@@ -10,6 +10,7 @@ import clientRoutes from './client.routes';
 import campaignRoutes from './campaign.routes';
 import taskRoutes from './task.routes';
 import leadRoutes from './lead.routes';
+import { opportunityRoutes } from './opportunity.routes';
 import projectRoutes from './projectRoutes';
 import financeRoutes from './finance.routes';
 import appConfigRoutes from './appConfig.routes';
@@ -19,6 +20,9 @@ import departmentRoutes from './department.routes';
 import employeeStatusRoutes from './employee-status.routes';
 import auditRoutes from './audit.routes';
 import scheduledNotificationRoutes from './scheduledNotification.routes';
+import dashboardRoutes from './dashboard.routes';
+import automationRoutes from './automation.routes';
+import sessionStatsRoutes from './session-stats.routes';
 
 const router = Router();
 
@@ -58,6 +62,9 @@ router.use('/roles', roleRoutes);
 // Rutas de leads
 router.use('/leads', leadRoutes);
 
+// Rutas de oportunidades
+router.use('/opportunities', opportunityRoutes);
+
 // Rutas de proyectos
 router.use('/projects', projectRoutes);
 
@@ -79,7 +86,16 @@ router.use('/departments', departmentRoutes);
 // Rutas de auditoría
 router.use('/audit', auditRoutes);
 
+// Rutas de dashboard
+router.use('/dashboard', dashboardRoutes);
+
 // Rutas de notificaciones programadas
 router.use('/scheduled-notifications', scheduledNotificationRoutes);
+
+// Rutas de automatizaciones
+router.use('/automations', automationRoutes);
+
+// Rutas de estadísticas de sesiones
+router.use('/sessions', sessionStatsRoutes);
 
 export default router; 

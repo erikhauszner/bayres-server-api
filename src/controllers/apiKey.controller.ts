@@ -70,11 +70,36 @@ export class ApiKeyController {
       }
 
       // Determinar los permisos basados en el input
-      let apiPermissions: string[] = ['read'];
-      if (permissions === 'full') {
+      let apiPermissions: string[] = [];
+
+      // Soportar tanto string simple como lista separada por comas
+      const normalizePerms = (perm: string | string[] | undefined): string[] => {
+        if (!perm) return [];
+
+        // Si ya es array devolvemos una copia limpiando espacios
+        if (Array.isArray(perm)) {
+          return perm.map(p => p.trim()).filter(Boolean);
+        }
+
+        // Si es string, separamos por coma y limpiamos espacios
+        return perm.split(',').map(p => p.trim()).filter(Boolean);
+      };
+
+      const permsArray = normalizePerms(permissions);
+
+      if (permsArray.includes('*') || permsArray.includes('full')) {
         apiPermissions = ['read', 'write', 'delete'];
-      } else if (permissions === 'readwrite') {
+      } else if (permsArray.includes('readwrite')) {
         apiPermissions = ['read', 'write'];
+      } else {
+        // Filtrar permisos válidos
+        const validPerms = ['read', 'write', 'delete'];
+        apiPermissions = permsArray.filter(p => validPerms.includes(p));
+      }
+
+      // Garantizar que al menos exista un permiso (por defecto 'read')
+      if (apiPermissions.length === 0) {
+        apiPermissions = ['read'];
       }
 
       // Crear la API key en la base de datos

@@ -369,25 +369,21 @@ export class EmployeeStatusController {
       
       // Manejar la actualización según el estado
       if (status === 'offline') {
-        // Cerrar todas las sesiones activas
-        const sessionsUpdated = await Session.updateMany(
-          { userId: new mongoose.Types.ObjectId(id), isActive: true },
-          { isActive: false }
-        );
+        // **CORREGIDO**: NO cerrar sesiones cuando un administrador cambia estado a offline
+        // El estado 'offline' significa "no disponible para trabajar" 
+        // NO significa "cerrar sesión de la aplicación"
+        console.log(`Administrador cambió estado del empleado ${id} a offline (no disponible) pero mantiene sus sesiones activas`);
         
-        console.log(`${sessionsUpdated.modifiedCount} sesiones cerradas para el empleado ${id}`);
-        
-        // Actualizar último cierre de sesión
-        employee.lastLogout = new Date();
-        await employee.save();
-        
-        console.log(`Último cierre de sesión actualizado para empleado ${id}: ${employee.lastLogout}`);
+        // Solo actualizar timestamp de cambio de estado (no lastLogout)
+        // lastLogout debe ser solo para logout real de la aplicación
       } else if (status === 'online') {
         // Si se está forzando el estado "online", actualizar la última hora de inicio de sesión
         employee.lastLogin = new Date();
         await employee.save();
         
-        console.log(`Último inicio de sesión actualizado para empleado ${id}: ${employee.lastLogin}`);
+        console.log(`Administrador cambió estado del empleado ${id} a online (disponible)`);
+      } else if (status === 'break') {
+        console.log(`Administrador cambió estado del empleado ${id} a break (en descanso)`);
       }
       
       // También guardar el estado actual en el empleado para facilitar consultas
@@ -649,19 +645,19 @@ export class EmployeeStatusController {
       
       // Manejar la actualización según el estado
       if (status === 'offline') {
-        // Cerrar todas las sesiones activas
-        const sessionsUpdated = await Session.updateMany(
-          { userId: new mongoose.Types.ObjectId(employeeId), isActive: true },
-          { isActive: false }
-        );
+        // **CORREGIDO**: NO cerrar sesiones cuando el estado es offline
+        // El estado 'offline' significa "no disponible para trabajar" 
+        // NO significa "cerrar sesión de la aplicación"
+        console.log(`Empleado ${employeeId} cambió a estado offline (no disponible) pero mantiene su sesión activa`);
         
-        console.log(`${sessionsUpdated.modifiedCount} sesiones cerradas para el empleado ${employeeId}`);
-        
-        // Actualizar último cierre de sesión
-        employee.lastLogout = new Date();
+        // Solo actualizar timestamp de cambio de estado (no lastLogout)
+        // lastLogout debe ser solo para logout real de la aplicación
       } else if (status === 'online') {
         // Actualizar último inicio de sesión si está pasando a online
         employee.lastLogin = new Date();
+        console.log(`Empleado ${employeeId} cambió a estado online (disponible)`);
+      } else if (status === 'break') {
+        console.log(`Empleado ${employeeId} cambió a estado break (en descanso)`);
       }
       
       // Guardar el estado actual en el empleado

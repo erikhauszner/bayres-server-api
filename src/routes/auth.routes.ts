@@ -17,6 +17,9 @@ router.post('/login',
 );
 router.post('/reset-password', AuthController.resetPassword as RequestHandler);
 
+// Endpoint de diagnóstico (temporal para debugging)
+router.get('/health', AuthController.healthCheck as RequestHandler);
+
 // Rutas protegidas (requieren autenticación)
 router.get('/me', authenticateToken, AuthController.getCurrentEmployee as RequestHandler);
 router.post('/logout', 

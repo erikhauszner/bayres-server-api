@@ -41,7 +41,12 @@ export interface ILead extends Document {
   estimatedBudget?: number;
 
   // Información Adicional
-  notes?: string;
+  notes?: {
+    _id?: mongoose.Types.ObjectId;
+    content: string;
+    createdAt: Date;
+    user: mongoose.Types.ObjectId;
+  }[];
   attachments?: string[];
   interactionHistory?: {
     _id?: mongoose.Types.ObjectId;
@@ -56,13 +61,27 @@ export interface ILead extends Document {
     title: string;
     description?: string;
     dueDate: Date;
-    status: 'pending' | 'in_progress' | 'completed' | 'cancelled';
+    status: 'pendiente' | 'en_progreso' | 'completada' | 'cancelada';
     priority: 'baja' | 'media' | 'alta';
     completedAt?: Date;
+    cancelledAt?: Date;
+    assignedTo?: mongoose.Types.ObjectId;
     user: mongoose.Types.ObjectId;
     createdAt: Date;
     updatedAt?: Date;
   }[];
+  
+  // Seguimientos programados
+  followUps?: {
+    _id?: mongoose.Types.ObjectId;
+    title: string;
+    description?: string;
+    scheduledDate: Date;
+    status: 'pendiente' | 'completado' | 'cancelado';
+    createdBy: mongoose.Types.ObjectId;
+    createdAt: Date;
+  }[];
+  
   documents?: {
     _id?: mongoose.Types.ObjectId;
     name: string;
@@ -87,6 +106,16 @@ export interface ILead extends Document {
   createdBy: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
+
+  // Campos de anulación
+  annulationReason?: string;
+  annulationDate?: Date;
+  annulatedBy?: mongoose.Types.ObjectId;
+
+  // Campos para Oportunidades
+  canMoveToSales?: boolean;
+  movedToOpportunities?: boolean;
+  opportunityId?: mongoose.Types.ObjectId;
 }
 
 const LeadSchema = new Schema<ILead>({
@@ -129,7 +158,11 @@ const LeadSchema = new Schema<ILead>({
   estimatedBudget: { type: Number },
 
   // Información Adicional
-  notes: { type: String },
+  notes: [{
+    content: { type: String, required: true },
+    createdAt: { type: Date, default: Date.now },
+    user: { type: Schema.Types.ObjectId, ref: 'Employee', required: true }
+  }],
   attachments: [{ type: String }],
   interactionHistory: [{
     date: { type: Date, required: true },
@@ -144,8 +177,8 @@ const LeadSchema = new Schema<ILead>({
     dueDate: { type: Date, required: true },
     status: { 
       type: String, 
-      enum: ['pending', 'in_progress', 'completed', 'cancelled'],
-      default: 'pending' 
+      enum: ['pendiente', 'en_progreso', 'completada', 'cancelada'],
+      default: 'pendiente' 
     },
     priority: { 
       type: String, 
@@ -153,9 +186,23 @@ const LeadSchema = new Schema<ILead>({
       default: 'media' 
     },
     completedAt: { type: Date },
+    cancelledAt: { type: Date },
+    assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee' },
     user: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date }
+  }],
+  followUps: [{
+    title: { type: String, required: true },
+    description: { type: String },
+    scheduledDate: { type: Date, required: true },
+    status: { 
+      type: String, 
+      enum: ['pendiente', 'completado', 'cancelado'],
+      default: 'pendiente' 
+    },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
+    createdAt: { type: Date, default: Date.now }
   }],
   documents: [{
     name: { type: String, required: true },
@@ -179,7 +226,17 @@ const LeadSchema = new Schema<ILead>({
   assignedTo: { type: Schema.Types.ObjectId, ref: 'Employee' },
   createdBy: { type: Schema.Types.ObjectId, ref: 'Employee', required: true },
   createdAt: { type: Date, default: Date.now },
-  updatedAt: { type: Date, default: Date.now }
+  updatedAt: { type: Date, default: Date.now },
+
+  // Campos de anulación
+  annulationReason: { type: String },
+  annulationDate: { type: Date },
+  annulatedBy: { type: Schema.Types.ObjectId, ref: 'Employee' },
+
+  // Campos para Oportunidades
+  canMoveToSales: { type: Boolean, default: false },
+  movedToOpportunities: { type: Boolean, default: false },
+  opportunityId: { type: Schema.Types.ObjectId, ref: 'Opportunity' }
 });
 
 // Índices para optimizar búsquedas

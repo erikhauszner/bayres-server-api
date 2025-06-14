@@ -268,4 +268,75 @@ export class AuthController {
       next(createError(500, 'Error al cambiar la contraseña'));
     }
   }
+
+  /**
+   * Endpoint de diagnóstico para verificar la salud del sistema de autenticación
+   */
+  static async healthCheck(req: Request, res: Response) {
+    try {
+      console.log('🔍 AuthController - Health check iniciado');
+      
+      const checks = {
+        database: false,
+        employeeModel: false,
+        roleModel: false,
+        permissionService: false,
+        jwtSecret: !!process.env.JWT_SECRET,
+        mongoConnection: false
+      };
+
+      // Verificar conexión a la base de datos
+      try {
+        const mongoose = await import('mongoose');
+        checks.mongoConnection = mongoose.connection.readyState === 1;
+        console.log('✅ Health check - MongoDB connection:', checks.mongoConnection);
+      } catch (error) {
+        console.error('❌ Health check - Error conexión MongoDB:', error);
+      }
+
+      // Verificar modelos
+      try {
+        const testEmployee = await Employee.findOne().limit(1);
+        checks.employeeModel = true;
+        checks.database = true;
+        console.log('✅ Health check - Employee model working');
+      } catch (error) {
+        console.error('❌ Health check - Error Employee model:', error);
+      }
+
+      try {
+        const Role = await import('../models/Role');
+        const testRole = await Role.default.findOne().limit(1);
+        checks.roleModel = true;
+        console.log('✅ Health check - Role model working');
+      } catch (error) {
+        console.error('❌ Health check - Error Role model:', error);
+      }
+
+      // Verificar servicio de permisos
+      try {
+        const { PermissionService } = await import('../services/permission.service');
+        checks.permissionService = !!PermissionService;
+        console.log('✅ Health check - Permission service available');
+      } catch (error) {
+        console.error('❌ Health check - Error Permission service:', error);
+      }
+
+      console.log('🔍 Health check results:', checks);
+
+      res.json({
+        status: 'Health check completed',
+        checks,
+        timestamp: new Date().toISOString(),
+        nodeEnv: process.env.NODE_ENV
+      });
+    } catch (error: any) {
+      console.error('❌ Health check - Error general:', error);
+      res.status(500).json({
+        status: 'Health check failed',
+        error: error.message,
+        timestamp: new Date().toISOString()
+      });
+    }
+  }
 } 

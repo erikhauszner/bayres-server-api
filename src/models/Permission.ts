@@ -42,9 +42,10 @@ const PermissionSchema = new Schema<IPermission>({
       'metrics',
       'reports',
       'dashboard',
-      'apps',
       'docs',
-      'monitoring'
+      'monitoring',
+      'opportunities',
+      'automations'
     ]
   },
   action: {
@@ -90,7 +91,26 @@ const PermissionSchema = new Schema<IPermission>({
       'actividad_reciente',
       'proximas_notificaciones',
       'leads_por_revisar',
-      'leads_por_asignar'
+      'leads_por_asignar',
+      'mis_oportunidades',
+      'oportunidades_activas',
+      'stage_edit_appsetters',
+      'unassign',
+      'auto_assign',
+      'view',
+      'convert_to_personal_client',
+      'convert_to_business_client',
+      'annul_lead',
+      'transfer',
+      'comment',
+      'view_all',
+      'view_own',
+      'close',
+      'reports',
+      'activate',
+      'duplicate',
+      'stats',
+      'submit'
     ]
   },
   isActive: {

@@ -131,21 +131,6 @@ router.put('/:id/permissions',
   EmployeePermissionController.updateEmployeePermissions as RequestHandler
 );
 
-// Rutas para estado de empleados
-router.get('/status/all', checkPermissions(['monitoring:read']) as RequestHandler, EmployeeStatusController.getEmployeesStatus as RequestHandler);
-router.get('/:id/status', checkPermissions(['monitoring:read']) as RequestHandler, EmployeeStatusController.getEmployeeStatus as RequestHandler);
-router.put('/:id/status', 
-  checkPermissions(['monitoring:update']) as RequestHandler, 
-  auditUpdate('empleado', {
-    module: 'empleados',
-    action: 'actualización_estado',
-    getDescription: (req) => `Actualización de estado para empleado ID: ${req.params.id}`,
-    getPreviousData: async (req) => {
-      const { EmployeeStatus } = require('../models/EmployeeStatus');
-      return await EmployeeStatus.findOne({ employee: req.params.id });
-    }
-  }) as any,
-  EmployeeStatusController.updateEmployeeStatus as RequestHandler
-);
+// Rutas de estado de empleados ahora están definidas en employee-status.routes.ts
 
 export default router; 

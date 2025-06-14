@@ -92,10 +92,14 @@ export class LeadController {
    */
   static async getLeadById(req: Request, res: Response, next: NextFunction) {
     try {
-      const lead = await Lead.findById(req.params.id)
-        .populate('assignedTo', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email')
-        .populate('interactionHistory.user', 'firstName lastName email');
+          const lead = await Lead.findById(req.params.id)
+      .populate('assignedTo', 'firstName lastName email')
+      .populate('createdBy', 'firstName lastName email')
+      .populate('interactionHistory.user', 'firstName lastName email')
+      .populate('followUps.createdBy', 'firstName lastName')
+      .populate('notes.user', 'firstName lastName email')
+      .populate('tasks.user', 'firstName lastName email')
+      .populate('tasks.assignedTo', 'firstName lastName email');
 
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -197,7 +201,11 @@ export class LeadController {
       )
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email')
-        .populate('interactionHistory.user', 'firstName lastName email') as ILead;
+        .populate('interactionHistory.user', 'firstName lastName email')
+        .populate('followUps.createdBy', 'firstName lastName')
+        .populate('notes.user', 'firstName lastName email')
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email') as ILead;
 
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -383,14 +391,15 @@ export class LeadController {
         return res.status(401).json({ message: 'Empleado no autorizado' });
       }
       
-      const { title, description, dueDate, status, priority } = req.body;
+      const { title, description, dueDate, status, priority, assignedTo } = req.body;
       
       const newTask = {
         title,
         description,
         dueDate: new Date(dueDate),
-        status,
-        priority,
+        status: status || 'pendiente',
+        priority: priority || 'media',
+        assignedTo: assignedTo || null,
         user: employeeId,
         createdAt: new Date()
       };
@@ -405,7 +414,8 @@ export class LeadController {
       )
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email')
-        .populate('tasks.user', 'firstName lastName email');
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email');
       
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -422,7 +432,7 @@ export class LeadController {
    */
   static async updateTask(req: Request, res: Response, next: NextFunction) {
     try {
-      const { title, description, dueDate, status, priority } = req.body;
+      const { title, description, dueDate, status, priority, assignedTo } = req.body;
       
       const updateData: any = {
         'tasks.$.title': title,
@@ -433,10 +443,17 @@ export class LeadController {
         'tasks.$.updatedAt': new Date(),
         lastActivity: new Date()
       };
+
+      // Actualizar assignedTo si se proporciona
+      if (assignedTo !== undefined) {
+        updateData['tasks.$.assignedTo'] = assignedTo;
+      }
       
       // Si la tarea se completa, añadimos la fecha de completado
-      if (status === 'completed') {
+      if (status === 'completada') {
         updateData['tasks.$.completedAt'] = new Date();
+      } else if (status === 'cancelada') {
+        updateData['tasks.$.cancelledAt'] = new Date();
       }
       
       const lead = await Lead.findOneAndUpdate(
@@ -449,7 +466,55 @@ export class LeadController {
       )
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email')
-        .populate('tasks.user', 'firstName lastName email');
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email');
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead o tarea no encontrada' });
+      }
+      
+      res.json(lead);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Actualiza el estado de una tarea específica de un lead
+   */
+  static async updateTaskStatus(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { status } = req.body;
+      
+      if (!['pendiente', 'en_progreso', 'completada', 'cancelada'].includes(status)) {
+        return res.status(400).json({ message: 'Estado de tarea inválido' });
+      }
+      
+      const updateData: any = {
+        'tasks.$.status': status,
+        'tasks.$.updatedAt': new Date(),
+        lastActivity: new Date()
+      };
+      
+      // Si la tarea se completa, añadimos la fecha de completado
+      if (status === 'completada') {
+        updateData['tasks.$.completedAt'] = new Date();
+      } else if (status === 'cancelada') {
+        updateData['tasks.$.cancelledAt'] = new Date();
+      }
+      
+      const lead = await Lead.findOneAndUpdate(
+        { 
+          _id: req.params.id,
+          'tasks._id': req.params.taskId 
+        },
+        { $set: updateData },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email')
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email');
       
       if (!lead) {
         return res.status(404).json({ message: 'Lead o tarea no encontrada' });
@@ -476,7 +541,8 @@ export class LeadController {
       )
         .populate('assignedTo', 'firstName lastName email')
         .populate('createdBy', 'firstName lastName email')
-        .populate('tasks.user', 'firstName lastName email');
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email');
       
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -489,22 +555,34 @@ export class LeadController {
   }
 
   /**
-   * Añade o actualiza una nota a un lead
+   * Añade una nueva nota a un lead
    */
   static async addNote(req: Request, res: Response, next: NextFunction) {
     try {
-      const { notes } = req.body;
+      const { content } = req.body;
+      const employeeId = req.employee?._id || req.user?._id;
+      
+      if (!employeeId) {
+        return res.status(401).json({ message: 'Empleado no autorizado' });
+      }
+      
+      const newNote = {
+        content,
+        createdAt: new Date(),
+        user: employeeId
+      };
       
       const lead = await Lead.findByIdAndUpdate(
         req.params.id,
         { 
-          notes,
+          $push: { notes: newNote },
           lastActivity: new Date()
         },
         { new: true }
       )
         .populate('assignedTo', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email');
+        .populate('createdBy', 'firstName lastName email')
+        .populate('notes.user', 'firstName lastName email');
       
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -517,25 +595,32 @@ export class LeadController {
   }
 
   /**
-   * Actualiza la nota de un lead
+   * Actualiza una nota específica de un lead
    */
   static async updateNote(req: Request, res: Response, next: NextFunction) {
     try {
-      const { notes } = req.body;
+      const { content } = req.body;
+      const { noteId } = req.params;
       
-      const lead = await Lead.findByIdAndUpdate(
-        req.params.id,
+      const lead = await Lead.findOneAndUpdate(
         { 
-          notes,
-          lastActivity: new Date()
+          _id: req.params.id,
+          'notes._id': noteId 
+        },
+        { 
+          $set: { 
+            'notes.$.content': content,
+            lastActivity: new Date()
+          } 
         },
         { new: true }
       )
         .populate('assignedTo', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email');
+        .populate('createdBy', 'firstName lastName email')
+        .populate('notes.user', 'firstName lastName email');
       
       if (!lead) {
-        return res.status(404).json({ message: 'Lead no encontrado' });
+        return res.status(404).json({ message: 'Lead o nota no encontrada' });
       }
       
       res.json(lead);
@@ -545,20 +630,23 @@ export class LeadController {
   }
 
   /**
-   * Elimina la nota de un lead
+   * Elimina una nota específica de un lead
    */
   static async deleteNote(req: Request, res: Response, next: NextFunction) {
     try {
+      const { noteId } = req.params;
+      
       const lead = await Lead.findByIdAndUpdate(
         req.params.id,
         { 
-          notes: "",
+          $pull: { notes: { _id: noteId } },
           lastActivity: new Date()
         },
         { new: true }
       )
         .populate('assignedTo', 'firstName lastName email')
-        .populate('createdBy', 'firstName lastName email');
+        .populate('createdBy', 'firstName lastName email')
+        .populate('notes.user', 'firstName lastName email');
       
       if (!lead) {
         return res.status(404).json({ message: 'Lead no encontrado' });
@@ -1456,6 +1544,559 @@ export class LeadController {
       res.json({ count });
     } catch (error) {
       next(error);
+    }
+  }
+
+  /**
+   * Anula un lead
+   */
+  static async annulLead(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { reason } = req.body;
+      const employeeId = req.employee?._id || req.user?._id;
+      
+      if (!employeeId) {
+        return res.status(401).json({ message: 'Empleado no autorizado' });
+      }
+
+      if (!reason || reason.trim() === '') {
+        return res.status(400).json({ message: 'La razón de anulación es requerida' });
+      }
+
+      const lead = await Lead.findById(req.params.id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+
+      // Obtener información del empleado para la razón
+      const Employee = require('../models/Employee').default;
+      const employee = await Employee.findById(employeeId).select('firstName lastName');
+      if (!employee) {
+        return res.status(401).json({ message: 'Empleado no encontrado' });
+      }
+
+      // Crear la razón completa con información del empleado
+      const fullReason = `${reason.trim()} - Anulado por: ${employee.firstName} ${employee.lastName} (ID: ${employeeId})`;
+
+      // Actualizar el lead: cambiar status a 'anulado', desasignar y agregar razón
+      const updatedLead = await Lead.findByIdAndUpdate(
+        req.params.id,
+        { 
+          status: 'anulado',
+          assignedTo: null, // Desasignar el lead
+          annulationReason: fullReason,
+          annulationDate: new Date(),
+          annulatedBy: employeeId,
+          lastActivity: new Date()
+        },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email')
+        .populate('annulatedBy', 'firstName lastName email');
+      
+      if (!updatedLead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      res.json({
+        message: 'Lead anulado exitosamente',
+        lead: updatedLead
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Marca un lead como contactado
+   */
+  static async markAsContacted(req: Request, res: Response, next: NextFunction) {
+    try {
+      const lead = await Lead.findByIdAndUpdate(
+        req.params.id,
+        { 
+          currentStage: 'Contactado',
+          lastActivity: new Date()
+        },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email');
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+      
+      res.json({
+        message: 'Lead marcado como contactado exitosamente',
+        lead
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Mueve un lead a la etapa "Pendiente Seguimiento"
+   */
+  static async scheduleFollowUpStage(req: Request, res: Response, next: NextFunction) {
+    try {
+      const lead = await Lead.findById(req.params.id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+
+      // Verificar que el lead esté en la etapa "Contactado"
+      if (lead.currentStage !== 'Contactado') {
+        return res.status(400).json({ 
+          message: 'Solo se puede agendar seguimiento desde la etapa "Contactado"' 
+        });
+      }
+
+      const updatedLead = await Lead.findByIdAndUpdate(
+        req.params.id,
+        { 
+          currentStage: 'Pendiente Seguimiento',
+          lastActivity: new Date()
+        },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email');
+      
+      res.json({
+        message: 'Lead movido a pendiente seguimiento exitosamente',
+        lead: updatedLead
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Mueve un lead a la etapa "Agenda Pendiente"
+   */
+  static async setAgendaPending(req: Request, res: Response, next: NextFunction) {
+    try {
+      const lead = await Lead.findById(req.params.id);
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead no encontrado' });
+      }
+
+      // Verificar que el lead esté en "Pendiente Seguimiento" o "Contactado"
+      if (!['Pendiente Seguimiento', 'Contactado'].includes(lead.currentStage)) {
+        return res.status(400).json({ 
+          message: 'Solo se puede mover a agenda pendiente desde "Contactado" o "Pendiente Seguimiento"' 
+        });
+      }
+
+      const updatedLead = await Lead.findByIdAndUpdate(
+        req.params.id,
+        { 
+          currentStage: 'Agenda Pendiente',
+          canMoveToSales: true,
+          lastActivity: new Date()
+        },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email');
+      
+      res.json({
+        message: 'Lead movido a agenda pendiente exitosamente',
+        lead: updatedLead
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Crear seguimiento
+  static async createFollowUp(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+      const { title, description, scheduledDate } = req.body;
+      const employeeId = req.employee?._id || req.user?._id;
+
+      if (!employeeId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Empleado no autorizado'
+        });
+      }
+
+      if (!title || !scheduledDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Título y fecha programada son requeridos'
+        });
+      }
+
+      const lead = await Lead.findById(id);
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          message: 'Lead no encontrado'
+        });
+      }
+
+      // Limpiar notas mal formadas antes de continuar
+      if (lead.notes && lead.notes.length > 0) {
+        lead.notes = lead.notes.filter(note => note.content && note.user);
+      }
+
+      // Crear seguimiento
+      const followUp = {
+        title,
+        description,
+        scheduledDate: new Date(scheduledDate),
+        status: 'pendiente' as const,
+        createdBy: employeeId,
+        createdAt: new Date()
+      };
+
+      if (!lead.followUps) {
+        lead.followUps = [];
+      }
+      lead.followUps.push(followUp);
+
+      // Agregar actividad al historial de interacciones
+      if (!lead.interactionHistory) {
+        lead.interactionHistory = [];
+      }
+      lead.interactionHistory.push({
+        type: 'seguimiento',
+        description: `Seguimiento programado: ${title} para ${new Date(scheduledDate).toLocaleDateString()}`,
+        user: employeeId,
+        date: new Date()
+      });
+
+      lead.lastActivity = new Date();
+      await lead.save();
+
+      // Poblar los datos para la respuesta
+      await lead.populate([
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'followUps.createdBy', select: 'firstName lastName' },
+        { path: 'interactionHistory.user', select: 'firstName lastName' }
+      ]);
+
+      res.json({
+        success: true,
+        data: lead,
+        message: 'Seguimiento creado exitosamente'
+      });
+    } catch (error) {
+      console.error('Error al crear seguimiento:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  // Actualizar estado de seguimiento
+  static async updateFollowUpStatus(req: Request, res: Response) {
+    try {
+      const { id, followUpId } = req.params;
+      const { status } = req.body;
+      const employeeId = req.employee?._id || req.user?._id;
+
+      if (!employeeId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Empleado no autorizado'
+        });
+      }
+
+      if (!status || !['pendiente', 'completado', 'cancelado'].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Estado inválido. Debe ser: pendiente, completado o cancelado'
+        });
+      }
+
+      const lead = await Lead.findById(id);
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          message: 'Lead no encontrado'
+        });
+      }
+
+      // Limpiar notas mal formadas antes de continuar
+      if (lead.notes && lead.notes.length > 0) {
+        lead.notes = lead.notes.filter(note => note.content && note.user);
+      }
+
+      // Buscar el seguimiento
+      if (!lead.followUps) {
+        return res.status(404).json({
+          success: false,
+          message: 'Seguimiento no encontrado'
+        });
+      }
+
+      const followUpIndex = lead.followUps.findIndex(fu => fu._id?.toString() === followUpId);
+      if (followUpIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: 'Seguimiento no encontrado'
+        });
+      }
+
+      const followUp = lead.followUps[followUpIndex];
+      const oldStatus = followUp.status;
+      followUp.status = status as 'pendiente' | 'completado' | 'cancelado';
+
+      // Agregar actividad
+      const statusLabels: Record<string, string> = {
+        'pendiente': 'pendiente',
+        'completado': 'completado',
+        'cancelado': 'cancelado'
+      };
+
+      if (!lead.interactionHistory) {
+        lead.interactionHistory = [];
+      }
+      lead.interactionHistory.push({
+        type: 'seguimiento',
+        description: `Seguimiento "${followUp.title}" marcado como ${statusLabels[status]}`,
+        user: employeeId,
+        date: new Date()
+      });
+
+      lead.lastActivity = new Date();
+      await lead.save();
+
+      // Poblar los datos para la respuesta
+      await lead.populate([
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'followUps.createdBy', select: 'firstName lastName' },
+        { path: 'interactionHistory.user', select: 'firstName lastName' }
+      ]);
+
+      res.json({
+        success: true,
+        data: lead,
+        message: `Seguimiento marcado como ${statusLabels[status]} exitosamente`
+      });
+    } catch (error) {
+      console.error('Error al actualizar estado de seguimiento:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  // Editar seguimiento
+  static async updateFollowUp(req: Request, res: Response) {
+    try {
+      const { id, followUpId } = req.params;
+      const { title, description, scheduledDate } = req.body;
+      const employeeId = req.employee?._id || req.user?._id;
+
+      if (!employeeId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Empleado no autorizado'
+        });
+      }
+
+      if (!title || !scheduledDate) {
+        return res.status(400).json({
+          success: false,
+          message: 'Título y fecha programada son requeridos'
+        });
+      }
+
+      const lead = await Lead.findById(id);
+      if (!lead) {
+        return res.status(404).json({
+          success: false,
+          message: 'Lead no encontrado'
+        });
+      }
+
+      // Limpiar notas mal formadas antes de continuar
+      if (lead.notes && lead.notes.length > 0) {
+        lead.notes = lead.notes.filter(note => note.content && note.user);
+      }
+
+      // Buscar el seguimiento
+      if (!lead.followUps) {
+        return res.status(404).json({
+          success: false,
+          message: 'Seguimiento no encontrado'
+        });
+      }
+
+      const followUpIndex = lead.followUps.findIndex(fu => fu._id?.toString() === followUpId);
+      if (followUpIndex === -1) {
+        return res.status(404).json({
+          success: false,
+          message: 'Seguimiento no encontrado'
+        });
+      }
+
+      const followUp = lead.followUps[followUpIndex];
+      const oldTitle = followUp.title;
+
+      // Actualizar campos
+      followUp.title = title;
+      followUp.description = description;
+      followUp.scheduledDate = new Date(scheduledDate);
+
+      // Agregar actividad
+      if (!lead.interactionHistory) {
+        lead.interactionHistory = [];
+      }
+      lead.interactionHistory.push({
+        type: 'seguimiento',
+        description: `Seguimiento editado: "${oldTitle}" → "${title}" (${new Date(scheduledDate).toLocaleDateString()})`,
+        user: employeeId,
+        date: new Date()
+      });
+
+      lead.lastActivity = new Date();
+      await lead.save();
+
+      // Poblar los datos para la respuesta
+      await lead.populate([
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'followUps.createdBy', select: 'firstName lastName' },
+        { path: 'interactionHistory.user', select: 'firstName lastName' }
+      ]);
+
+      res.json({
+        success: true,
+        data: lead,
+        message: 'Seguimiento editado exitosamente'
+      });
+    } catch (error) {
+      console.error('Error al editar seguimiento:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
+    }
+  }
+
+  /**
+   * Asigna una tarea específica de un lead a un empleado
+   */
+  static async assignTask(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { assignedTo } = req.body;
+      
+      const updateData: any = {
+        'tasks.$.assignedTo': assignedTo || null,
+        'tasks.$.updatedAt': new Date(),
+        lastActivity: new Date()
+      };
+      
+      const lead = await Lead.findOneAndUpdate(
+        { 
+          _id: req.params.id,
+          'tasks._id': req.params.taskId 
+        },
+        { $set: updateData },
+        { new: true }
+      )
+        .populate('assignedTo', 'firstName lastName email')
+        .populate('createdBy', 'firstName lastName email')
+        .populate('tasks.user', 'firstName lastName email')
+        .populate('tasks.assignedTo', 'firstName lastName email');
+      
+      if (!lead) {
+        return res.status(404).json({ message: 'Lead o tarea no encontrada' });
+      }
+      
+      res.json(lead);
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  // Método para desasignar lead
+  static async unassignLead(req: Request, res: Response): Promise<void> {
+    try {
+      const { id } = req.params;
+      const employeeId = req.employee?._id || req.user?._id;
+
+      if (!employeeId) {
+        res.status(401).json({
+          success: false,
+          message: 'Empleado no autorizado'
+        });
+        return;
+      }
+
+      // Buscar el lead
+      const lead = await Lead.findById(id);
+      if (!lead) {
+        res.status(404).json({
+          success: false,
+          message: 'Lead no encontrado'
+        });
+        return;
+      }
+
+      // Verificar si el lead ya está desasignado
+      if (!lead.assignedTo) {
+        res.status(400).json({
+          success: false,
+          message: 'El lead no tiene ningún empleado asignado'
+        });
+        return;
+      }
+
+      const previousAssignee = lead.assignedTo;
+
+      // Desasignar el lead
+      lead.assignedTo = undefined;
+      
+      // Agregar interacción de auditoría
+      if (!lead.interactionHistory) {
+        lead.interactionHistory = [];
+      }
+      
+      lead.interactionHistory.push({
+        type: 'asignación',
+        description: 'Lead desasignado del empleado asignado',
+        user: employeeId,
+        date: new Date()
+      });
+
+      lead.lastActivity = new Date();
+      await lead.save();
+
+      // Poblar los datos para la respuesta
+      await lead.populate([
+        { path: 'assignedTo', select: 'firstName lastName email' },
+        { path: 'createdBy', select: 'firstName lastName email' },
+        { path: 'interactionHistory.user', select: 'firstName lastName' }
+      ]);
+
+      res.json({
+        success: true,
+        message: 'Lead desasignado correctamente',
+        data: lead
+      });
+    } catch (error) {
+      console.error('Error al desasignar lead:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor'
+      });
     }
   }
 } 

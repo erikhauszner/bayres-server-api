@@ -6,6 +6,7 @@ import app from './app';
 import initializeRoles from './scripts/initializeRoles';
 import { Server as SocketIOServer } from 'socket.io';
 import { CronService } from './services/cronService';
+import { SessionSchedulerService } from './services/session-scheduler.service';
 
 // Configuración de variables de entorno
 // Primero intentamos cargar desde .env.local (desarrollo local)
@@ -41,6 +42,15 @@ mongoose.connect(MONGODB_URI)
     console.log('Conectado a MongoDB');
     // Inicializar roles y permisos
     await initializeRoles();
+    
+    // **INICIALIZAR SISTEMA DE LIMPIEZA DE SESIONES**
+    try {
+      await SessionSchedulerService.start();
+      console.log('✅ Sistema de limpieza de sesiones iniciado correctamente');
+    } catch (error) {
+      console.error('❌ Error al iniciar sistema de limpieza de sesiones:', error);
+      // No detener el servidor por este error, solo registrarlo
+    }
     
     // Crear servidor HTTP
     const server = http.createServer(app);
@@ -146,6 +156,7 @@ mongoose.connect(MONGODB_URI)
 process.on('SIGINT', () => {
   console.log('\n🛑 Recibida señal SIGINT, cerrando servidor...');
   CronService.stopAllJobs();
+  SessionSchedulerService.stop();
   mongoose.connection.close().then(() => {
     console.log('✅ Conexión a MongoDB cerrada');
     process.exit(0);
@@ -155,6 +166,7 @@ process.on('SIGINT', () => {
 process.on('SIGTERM', () => {
   console.log('\n🛑 Recibida señal SIGTERM, cerrando servidor...');
   CronService.stopAllJobs();
+  SessionSchedulerService.stop();
   mongoose.connection.close().then(() => {
     console.log('✅ Conexión a MongoDB cerrada');
     process.exit(0);
