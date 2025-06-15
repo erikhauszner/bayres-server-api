@@ -149,6 +149,50 @@ export class AutomationController {
   }
 
   /**
+   * Obtener automatización para formulario (solo requiere automations:submit)
+   */
+  static async getForForm(req: Request, res: Response) {
+    try {
+      const { id } = req.params;
+
+      const automation = await AutomationService.getById(id);
+      if (!automation) {
+        return res.status(404).json({
+          success: false,
+          message: 'Automatización no encontrada'
+        });
+      }
+
+      if (automation.status !== 'active') {
+        return res.status(400).json({
+          success: false,
+          message: 'Esta automatización no está disponible'
+        });
+      }
+
+      // Solo devolver campos necesarios para el formulario
+      const formData = {
+        _id: automation._id,
+        name: automation.name,
+        description: automation.description,
+        fields: automation.fields,
+        status: automation.status
+      };
+
+      res.json({
+        success: true,
+        data: formData
+      });
+    } catch (error: any) {
+      console.error('Error al obtener automatización para formulario:', error);
+      res.status(500).json({
+        success: false,
+        message: error.message || 'Error interno del servidor'
+      });
+    }
+  }
+
+  /**
    * Obtener automatización por nombre (para uso público)
    */
   static async getByName(req: Request, res: Response) {

@@ -62,6 +62,12 @@ router.get('/active',
   AutomationController.getActive as RequestHandler
 );
 
+// Ruta específica para obtener automatización para formularios (solo requiere automations:submit)
+router.get('/:id/form', 
+  checkPermissions(['automations:submit']) as RequestHandler,
+  AutomationController.getForForm as RequestHandler
+);
+
 // RUTA GENÉRICA AL FINAL (importante: después de rutas específicas)  
 router.get('/:id', 
   checkPermissions(['automations:read']) as RequestHandler,
