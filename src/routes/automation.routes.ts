@@ -12,9 +12,6 @@ const router = Router();
 router.get('/public/:name', AutomationController.getByName as RequestHandler);
 router.get('/public/id/:id', AutomationController.getPublic as RequestHandler);
 
-// Endpoint público para webhooks externos (sin autenticación)
-router.post('/:id/submit', AutomationController.submit as RequestHandler);
-
 // ========================================
 // RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN)
 // ========================================
@@ -67,7 +64,13 @@ router.post('/:id/duplicate',
   AutomationController.duplicate as RequestHandler
 );
 
-// Endpoint protegido para envíos desde el frontend (si es necesario)
+// Endpoint protegido para enviar automatizaciones (requiere autenticación)
+router.post('/:id/submit', 
+  checkPermissions(['automations:submit']) as RequestHandler,
+  AutomationController.submit as RequestHandler
+);
+
+// Endpoint alternativo para envíos desde el frontend (compatibilidad)
 router.post('/:id/submit-form', 
   checkPermissions(['automations:submit']) as RequestHandler,
   AutomationController.submit as RequestHandler

@@ -487,8 +487,22 @@ export class AutomationController {
 
           // Agregar employee ID si está configurado
           if (automation.config.sendEmployeeId) {
-            // En este caso no tenemos employee ID porque es público
-            payload.employee_id = null;
+            // Obtener el employee ID del empleado autenticado
+            const employeeId = req.employee?._id || req.user?._id;
+            
+            if (employeeId) {
+              // Usar el employee ID del empleado autenticado
+              payload.employee_id = employeeId.toString();
+              console.log('✅ Employee ID del empleado autenticado:', payload.employee_id);
+            } else if (formData.employee_id) {
+              // Fallback: usar employee_id del payload si se proporciona
+              payload.employee_id = formData.employee_id;
+              console.log('✅ Employee ID del payload:', payload.employee_id);
+            } else {
+              // Fallback final: usar el creador de la automatización
+              payload.employee_id = automation.createdBy.toString();
+              console.log('✅ Employee ID del creador de automatización:', payload.employee_id);
+            }
           }
 
           const headers: any = {
