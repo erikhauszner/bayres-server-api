@@ -77,4 +77,18 @@ router.post(
   auditController.optimizeIndexes as any
 );
 
+// Registrar acción de auditoría desde frontend
+router.post(
+  '/log-action',
+  authenticateToken,
+  auditController.logAction as any
+);
+
+// Obtener estadísticas de actividad del usuario actual
+router.get(
+  '/user-activity-stats',
+  authenticateToken,
+  auditController.getUserActivityStats as any
+);
+
 export default router; 

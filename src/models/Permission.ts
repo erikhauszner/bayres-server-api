@@ -110,7 +110,8 @@ const PermissionSchema = new Schema<IPermission>({
       'activate',
       'duplicate',
       'stats',
-      'submit'
+      'submit',
+      'cleanup'
     ]
   },
   isActive: {

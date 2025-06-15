@@ -274,6 +274,88 @@ class AuditController {
       });
     }
   }
+
+  /**
+   * Registra una acción de auditoría desde el frontend
+   */
+  async logAction(req: Request, res: Response) {
+    try {
+      const auditData = req.body;
+      
+      // Obtener IP del cliente
+      const ip = req.ip || req.connection.remoteAddress || 'unknown';
+      const userAgent = req.headers['user-agent'];
+      
+      const log = await auditService.logAction(req, {
+        ...auditData,
+        ip,
+        userAgent
+      });
+      
+      return res.status(201).json({
+        success: true,
+        data: log
+      });
+    } catch (error) {
+      const errorResponse = errorUtils(error as Error);
+      return res.status(errorResponse.status).json({
+        success: false,
+        message: errorResponse.message
+      });
+    }
+  }
+
+  /**
+   * Obtiene estadísticas de actividad del usuario actual
+   */
+  async getUserActivityStats(req: Request, res: Response) {
+    try {
+      const userId = (req as any).employee?._id || (req as any).user?._id;
+      
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          message: 'Usuario no autenticado'
+        });
+      }
+
+      // Obtener actividades del último día
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+
+      const filters = {
+        userId: userId.toString(),
+        startDate: yesterday.toISOString()
+      };
+
+      const result = await auditService.getLogs(filters, 1, 1000);
+      
+      // Procesar estadísticas
+      const activityStats = result.logs.reduce((acc: any, log: any) => {
+        acc[log.action] = (acc[log.action] || 0) + 1;
+        return acc;
+      }, {});
+
+      const lastActivity = result.logs.length > 0 ? result.logs[0].timestamp : null;
+      
+      return res.status(200).json({
+        success: true,
+        data: {
+          userId,
+          lastActivity,
+          totalActivities: result.logs.length,
+          activityByType: activityStats,
+          isActive: lastActivity ? (new Date().getTime() - new Date(lastActivity).getTime()) < 20 * 60 * 1000 : false
+        }
+      });
+    } catch (error) {
+      const errorResponse = errorUtils(error as Error);
+      return res.status(errorResponse.status).json({
+        success: false,
+        message: errorResponse.message
+      });
+    }
+  }
 }
 
 export default new AuditController(); 

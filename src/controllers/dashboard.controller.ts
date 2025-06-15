@@ -35,7 +35,10 @@ export class DashboardController {
       });
 
       // Leads pendientes de aprobación
-      const leadsToReviewPromise = Lead.countDocuments({ isApproved: false });
+      const leadsToReviewPromise = Lead.countDocuments({ 
+        isApproved: false,
+        status: 'nuevo' // Solo contar los leads nuevos que están pendientes de aprobación
+      });
 
       // Leads aprobados sin asignar
       const leadsToAssignPromise = Lead.countDocuments({
@@ -69,6 +72,18 @@ export class DashboardController {
         myOpportunitiesPromise,
         activeOpportunitiesPromise
       ]);
+
+      // Debug logging
+      console.log('Dashboard Stats Debug:', {
+        employeesOnline,
+        assignedLeads,
+        pendingTasks,
+        leadsToReview,
+        leadsToAssign,
+        myOpportunities,
+        activeOpportunities,
+        employeeId
+      });
 
       res.json({
         employeesOnline,

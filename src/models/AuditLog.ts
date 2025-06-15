@@ -29,7 +29,7 @@ const AuditLogSchema: Schema = new Schema(
     action: {
       type: String,
       required: true,
-      enum: ['creación', 'actualización', 'eliminación', 'login', 'logout', 'exportación', 'asignación', 'cambio_estado', 'ejecución', 'actualización_valor', 'actualización_estado', 'actualización_progreso', 'actualización_fechas', 'otro'],
+      enum: ['creación', 'actualización', 'eliminación', 'login', 'logout', 'exportación', 'asignación', 'cambio_estado', 'ejecución', 'actualización_valor', 'actualización_estado', 'actualización_progreso', 'actualización_fechas', 'actividad_usuario', 'inactividad_detectada', 'cambio_estado_automatico', 'otro'],
     },
     description: {
       type: String,
@@ -38,7 +38,7 @@ const AuditLogSchema: Schema = new Schema(
     targetType: {
       type: String,
       required: true,
-      enum: ['lead', 'cliente', 'empleado', 'proyecto', 'tarea', 'finanzas', 'campaña', 'rol', 'permiso', 'departamento', 'factura', 'transacción', 'notificación', 'reporte', 'métrica', 'comentario', 'sesión', 'otro'],
+      enum: ['lead', 'cliente', 'empleado', 'proyecto', 'tarea', 'finanzas', 'campaña', 'rol', 'permiso', 'departamento', 'factura', 'transacción', 'notificación', 'reporte', 'métrica', 'comentario', 'sesión', 'actividad', 'otro'],
     },
     targetId: {
       type: mongoose.Schema.Types.ObjectId,

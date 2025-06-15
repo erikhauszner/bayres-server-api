@@ -11,8 +11,8 @@
     "seed:permissions": "ts-node src/scripts/seed-permissions.ts",
     "clean:permissions": "ts-node src/scripts/cleanDuplicatePermissions.ts",
     "check:permissions": "ts-node src/scripts/checkDuplicatePermissionsInRole.ts",
-    "cleanup:sessions": "ts-node src/scripts/cleanup-sessions.ts"
-  },
+        "cleanup:sessions": "ts-node src/scripts/cleanup-sessions.ts"
+    },
   "keywords": [],
   "author": "",
   "license": "ISC",

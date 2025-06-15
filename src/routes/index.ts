@@ -23,6 +23,7 @@ import scheduledNotificationRoutes from './scheduledNotification.routes';
 import dashboardRoutes from './dashboard.routes';
 import automationRoutes from './automation.routes';
 import sessionStatsRoutes from './session-stats.routes';
+import sessionRoutes from './session.routes';
 
 const router = Router();
 
@@ -97,5 +98,8 @@ router.use('/automations', automationRoutes);
 
 // Rutas de estadísticas de sesiones
 router.use('/sessions', sessionStatsRoutes);
+
+// Rutas de gestión de sesiones
+router.use('/sessions', sessionRoutes);
 
 export default router; 

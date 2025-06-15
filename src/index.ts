@@ -7,6 +7,7 @@ import initializeRoles from './scripts/initializeRoles';
 import { Server as SocketIOServer } from 'socket.io';
 import { CronService } from './services/cronService';
 import { SessionSchedulerService } from './services/session-scheduler.service';
+import { AutoDisconnectService } from './services/AutoDisconnectService';
 
 // Configuración de variables de entorno
 // Primero intentamos cargar desde .env.local (desarrollo local)
@@ -49,6 +50,15 @@ mongoose.connect(MONGODB_URI)
       console.log('✅ Sistema de limpieza de sesiones iniciado correctamente');
     } catch (error) {
       console.error('❌ Error al iniciar sistema de limpieza de sesiones:', error);
+      // No detener el servidor por este error, solo registrarlo
+    }
+    
+    // **INICIALIZAR SISTEMA DE DESCONEXIÓN AUTOMÁTICA**
+    try {
+      AutoDisconnectService.startPeriodicCheck();
+      console.log('✅ Sistema de desconexión automática iniciado correctamente');
+    } catch (error) {
+      console.error('❌ Error al iniciar sistema de desconexión automática:', error);
       // No detener el servidor por este error, solo registrarlo
     }
     

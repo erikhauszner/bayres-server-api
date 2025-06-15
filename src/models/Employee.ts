@@ -14,6 +14,7 @@ export interface IEmployee extends Document {
   isActive: boolean;
   lastLogin?: Date;
   lastLogout?: Date;
+  lastActivity?: Date;
   permissions: string[];
   forcePasswordChange: boolean;
   status?: 'online' | 'offline' | 'break';
@@ -74,6 +75,9 @@ const EmployeeSchema = new Schema<IEmployee>({
     type: Date
   },
   lastLogout: {
+    type: Date
+  },
+  lastActivity: {
     type: Date
   },
   permissions: [{
