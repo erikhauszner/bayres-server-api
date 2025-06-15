@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Distribution, Partner, PartnerDistribution } from '../../models/Finance';
 import mongoose from 'mongoose';
+import { logAuditAction, sanitizeDataForAudit } from '../../utils/auditUtils';
 
 export class DistributionController {
   /**

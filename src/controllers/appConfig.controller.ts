@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { AppConfigService } from '../services/appConfig.service';
 import { IEmployee } from '../models/Employee';
 import { validateObjectId } from '../utils/validators';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 // Definir tipos para usar en el controlador
 interface RequestWithUser extends Request {

@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { AutomationService } from '../services/automation.service';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 // Interfaz para requests con usuario autenticado
 interface RequestWithUser extends Request {
@@ -55,6 +56,18 @@ export class AutomationController {
         config,
         createdBy
       });
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'crear_automatizacion',
+        `Automatización creada: ${automation.name}`,
+        'automatizacion',
+        (automation._id as any).toString(),
+        undefined,
+        sanitizeDataForAudit(automation),
+        'automatizaciones'
+      );
 
       res.status(201).json({
         success: true,

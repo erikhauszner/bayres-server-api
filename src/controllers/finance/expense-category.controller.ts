@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ExpenseCategory, IExpenseCategory } from '../../models/Finance';
+import { logAuditAction, sanitizeDataForAudit } from '../../utils/auditUtils';
 
 export class ExpenseCategoryController {
   /**

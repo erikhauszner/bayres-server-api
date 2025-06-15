@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import ProjectTask from '../models/ProjectTask';
 import { Project } from '../models/Project';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 // Obtener todas las tareas de un proyecto
 export const getProjectTasks = async (req: Request, res: Response): Promise<void> => {

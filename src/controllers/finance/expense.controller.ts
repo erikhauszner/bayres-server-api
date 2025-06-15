@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Expense, IExpense, ExpenseCategory } from '../../models/Finance';
 import { Project } from '../../models/Project';
 import ProjectTask from '../../models/ProjectTask';
+import { logAuditAction, sanitizeDataForAudit } from '../../utils/auditUtils';
 
 // Extender la interfaz Request para incluir el campo file
 interface RequestWithFile extends Request {
@@ -150,6 +151,18 @@ export class ExpenseController {
       await expense.populate('taskId', 'title');
       await expense.populate('categoryId', 'name');
       await expense.populate('createdBy', 'firstName lastName');
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'crear_gasto',
+        `Gasto creado: ${expense.description || 'Sin descripción'} - $${expense.amount}`,
+        'gasto',
+        (expense._id as any).toString(),
+        undefined,
+        sanitizeDataForAudit(expense.toObject()),
+        'finanzas'
+      );
       
       res.status(201).json(expense);
     } catch (error) {

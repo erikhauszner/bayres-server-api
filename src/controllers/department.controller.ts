@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Department from '../models/Department';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export const departmentController = {
   getAllDepartments: async (req: Request, res: Response) => {

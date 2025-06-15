@@ -100,11 +100,20 @@ class AuditController {
    */
   async getStatistics(req: Request, res: Response) {
     try {
-      const { startDate, endDate } = req.query;
+      const { startDate, endDate, includeSystemActivities } = req.query;
+      
+      // Crear filtros para las estadísticas
+      const statsFilters: any = {};
+      if (startDate) statsFilters.startDate = startDate as string;
+      if (endDate) statsFilters.endDate = endDate as string;
+      if (includeSystemActivities !== undefined) {
+        statsFilters.includeSystemActivities = includeSystemActivities === 'true';
+      }
       
       const stats = await auditService.getStatistics(
-        startDate as string,
-        endDate as string
+        statsFilters.startDate,
+        statsFilters.endDate,
+        statsFilters.includeSystemActivities
       );
       
       return res.status(200).json({
@@ -125,9 +134,12 @@ class AuditController {
    */
   async getRecentActivity(req: Request, res: Response) {
     try {
-      const { limit = 10 } = req.query;
+      const { limit = 10, includeSystemActivities } = req.query;
       
-      const activities = await auditService.getRecentActivities(Number(limit));
+      const activities = await auditService.getRecentActivities(
+        Number(limit),
+        includeSystemActivities === 'true'
+      );
       
       return res.status(200).json({
         success: true,

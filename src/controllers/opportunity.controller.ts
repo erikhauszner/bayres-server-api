@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { Opportunity, IOpportunity } from '../models/Opportunity';
 import { Lead } from '../models/Lead';
 import mongoose from 'mongoose';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export class OpportunityController {
   // Obtener todas las oportunidades con filtros
@@ -137,6 +138,18 @@ export class OpportunityController {
       await opportunity.save();
 
       await opportunity.populate('originalAgent', 'firstName lastName email');
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'crear_oportunidad',
+        `Oportunidad creada: ${opportunity.title || 'Sin título'}`,
+        'oportunidad',
+        (opportunity._id as mongoose.Types.ObjectId).toString(),
+        undefined,
+        sanitizeDataForAudit(opportunity.toObject()),
+        'oportunidades'
+      );
 
       res.status(201).json({
         success: true,
@@ -1215,6 +1228,15 @@ export class OpportunityController {
     try {
       const { id } = req.params;
 
+      // Obtener datos anteriores para auditoría
+      const previousOpportunity = await Opportunity.findById(id);
+      if (!previousOpportunity) {
+        return res.status(404).json({
+          success: false,
+          message: 'Oportunidad no encontrada'
+        });
+      }
+
       const opportunity = await Opportunity.findByIdAndUpdate(
         id,
         { ...req.body, updatedAt: new Date() },
@@ -1226,12 +1248,17 @@ export class OpportunityController {
         { path: 'leadId', select: 'firstName lastName company email phone' }
       ]);
 
-      if (!opportunity) {
-        return res.status(404).json({
-          success: false,
-          message: 'Oportunidad no encontrada'
-        });
-      }
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'actualizar_oportunidad',
+        `Oportunidad actualizada: ${opportunity?.title || 'Sin título'}`,
+        'oportunidad',
+        id,
+        sanitizeDataForAudit(previousOpportunity.toObject()),
+        sanitizeDataForAudit(opportunity?.toObject()),
+        'oportunidades'
+      );
 
       res.json({
         success: true,
@@ -1252,13 +1279,16 @@ export class OpportunityController {
     try {
       const { id } = req.params;
 
-      const opportunity = await Opportunity.findByIdAndDelete(id);
+      // Obtener datos antes de eliminar para auditoría
+      const opportunity = await Opportunity.findById(id);
       if (!opportunity) {
         return res.status(404).json({
           success: false,
           message: 'Oportunidad no encontrada'
         });
       }
+
+      await Opportunity.findByIdAndDelete(id);
 
       // Revertir cambios en el lead
       if (opportunity.leadId) {
@@ -1268,6 +1298,18 @@ export class OpportunityController {
           canMoveToSales: true
         });
       }
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'eliminar_oportunidad',
+        `Oportunidad eliminada: ${opportunity.title || 'Sin título'}`,
+        'oportunidad',
+        id,
+        sanitizeDataForAudit(opportunity.toObject()),
+        undefined,
+        'oportunidades'
+      );
 
       res.json({
         success: true,

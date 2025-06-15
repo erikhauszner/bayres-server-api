@@ -2,6 +2,7 @@ import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Report from '../models/Report';
 import { Metric } from '../models/Metric';
 import { Campaign } from '../models/Campaign';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export const getReports: RequestHandler = async (req, res, next) => {
   try {

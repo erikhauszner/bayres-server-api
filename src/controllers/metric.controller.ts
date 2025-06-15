@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Metric, IMetric } from '../models/Metric';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export const getMetrics: RequestHandler = async (req, res, next) => {
   try {

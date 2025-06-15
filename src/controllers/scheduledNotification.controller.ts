@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { CronService } from '../services/cronService';
 import { ScheduledNotificationService } from '../services/scheduledNotification.service';
 import ScheduledNotification from '../models/ScheduledNotification';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 interface RequestWithUser extends Request {
   user?: any;

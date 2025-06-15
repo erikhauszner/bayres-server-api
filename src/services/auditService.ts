@@ -83,44 +83,40 @@ class AuditService {
   /**
    * Obtiene estadísticas de auditoría
    */
-  async getStatistics(startDate?: string, endDate?: string): Promise<any> {
+  async getStatistics(startDate?: string, endDate?: string, includeSystemActivities?: boolean): Promise<any> {
     try {
-      const dateFilter: any = {};
+      // Construir filtros usando la misma lógica que buildQuery
+      const filters: any = {};
+      if (startDate) filters.startDate = startDate;
+      if (endDate) filters.endDate = endDate;
+      if (includeSystemActivities !== undefined) filters.includeSystemActivities = includeSystemActivities;
       
-      if (startDate || endDate) {
-        dateFilter.timestamp = {};
-        if (startDate) dateFilter.timestamp.$gte = new Date(startDate);
-        if (endDate) {
-          const endDateObj = new Date(endDate);
-          endDateObj.setHours(23, 59, 59, 999);
-          dateFilter.timestamp.$lte = endDateObj;
-        }
-      }
+      const matchFilter = this.buildQuery(filters);
 
       // Actividades por tipo
       const actionStats = await AuditLog.aggregate([
-        { $match: dateFilter },
+        { $match: matchFilter },
         { $group: { _id: '$action', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
 
       // Actividades por módulo
       const moduleStats = await AuditLog.aggregate([
-        { $match: dateFilter },
+        { $match: matchFilter },
         { $group: { _id: '$module', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
 
       // Actividades por tipo de objetivo
       const targetTypeStats = await AuditLog.aggregate([
-        { $match: dateFilter },
+        { $match: matchFilter },
         { $group: { _id: '$targetType', count: { $sum: 1 } } },
         { $sort: { count: -1 } }
       ]);
 
       // Actividades por usuario
       const userStats = await AuditLog.aggregate([
-        { $match: dateFilter },
+        { $match: matchFilter },
         { $group: { _id: { userId: '$userId', userName: '$userName' }, count: { $sum: 1 } } },
         { $sort: { count: -1 } },
         { $limit: 10 }
@@ -128,7 +124,7 @@ class AuditService {
 
       // Actividades por día
       const dailyStats = await AuditLog.aggregate([
-        { $match: dateFilter },
+        { $match: matchFilter },
         { 
           $group: { 
             _id: { 
@@ -146,7 +142,7 @@ class AuditService {
         targetTypeStats,
         userStats,
         dailyStats,
-        total: await AuditLog.countDocuments(dateFilter)
+        total: await AuditLog.countDocuments(matchFilter)
       };
     } catch (error) {
       console.error('Error al obtener estadísticas de auditoría:', error);
@@ -157,9 +153,13 @@ class AuditService {
   /**
    * Obtiene actividades recientes
    */
-  async getRecentActivities(limit: number = 10): Promise<IAuditLog[]> {
+  async getRecentActivities(limit: number = 10, includeSystemActivities: boolean = false): Promise<IAuditLog[]> {
     try {
-      return await AuditLog.find()
+      // Usar buildQuery para consistencia con otros métodos
+      const filters = { includeSystemActivities };
+      const query = this.buildQuery(filters);
+
+      return await AuditLog.find(query)
         .sort({ timestamp: -1 })
         .limit(limit)
         .lean();
@@ -317,6 +317,16 @@ class AuditService {
     if (filters.module) query.module = filters.module;
     if (filters.targetType) query.targetType = filters.targetType;
     if (filters.targetId) query.targetId = filters.targetId;
+    
+    // Excluir actividades automáticas del sistema por defecto
+    // Solo mostrar actividades del sistema si se solicita explícitamente
+    if (!filters.includeSystemActivities) {
+      query.$and = [
+        { userName: { $ne: "Usuario desconocido" } },
+        { userName: { $ne: "sistema" } },
+        { module: { $ne: "sistema" } }
+      ];
+    }
     
     // Rango de fechas
     if (filters.startDate || filters.endDate) {

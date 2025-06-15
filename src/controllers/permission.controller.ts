@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import Permission from '../models/Permission';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export class PermissionController {
   /**

@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { Task, ITask } from '../models/Task';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 // Interfaz extendida para incluir historial y fechas si no están en el modelo original
 interface TaskWithHistory extends ITask {

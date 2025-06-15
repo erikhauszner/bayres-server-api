@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { FinancialAccount, IFinancialAccount } from '../../models/Finance';
+import { logAuditAction, sanitizeDataForAudit } from '../../utils/auditUtils';
 
 export class FinancialAccountController {
   /**

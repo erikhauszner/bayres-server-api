@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import ApiKey, { IApiKey } from '../models/ApiKey';
 import crypto from 'crypto';
 import mongoose from 'mongoose';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export class ApiKeyController {
   /**
@@ -113,6 +114,23 @@ export class ApiKeyController {
 
       await apiKey.save();
 
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'crear_api_key',
+        `API Key creada: ${apiKey.name}`,
+        'api_key',
+        (apiKey._id as mongoose.Types.ObjectId).toString(),
+        undefined,
+        sanitizeDataForAudit({
+          name: apiKey.name,
+          permissions: apiKey.permissions,
+          status: apiKey.status,
+          expiresAt: apiKey.expiresAt
+        }),
+        'api_keys'
+      );
+
       // Retornar la clave completa solo una vez después de crearla
       res.status(201).json({
         id: apiKey._id,
@@ -185,21 +203,35 @@ export class ApiKeyController {
         return res.status(400).json({ message: 'Estado inválido' });
       }
 
+      // Obtener datos anteriores para auditoría
+      const previousApiKey = await ApiKey.findById(id);
+      if (!previousApiKey) {
+        return res.status(404).json({ message: 'API key no encontrada' });
+      }
+
       const apiKey = await ApiKey.findByIdAndUpdate(
         id,
         { status },
         { new: true }
       );
 
-      if (!apiKey) {
-        return res.status(404).json({ message: 'API key no encontrada' });
-      }
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'actualizar_estado_api_key',
+        `Estado de API Key actualizado: ${apiKey?.name} (${previousApiKey.status} → ${status})`,
+        'api_key',
+        id,
+        sanitizeDataForAudit({ status: previousApiKey.status }),
+        sanitizeDataForAudit({ status: apiKey?.status }),
+        'api_keys'
+      );
 
       res.status(200).json({
-        id: apiKey._id,
-        name: apiKey.name,
-        status: apiKey.status,
-        updatedAt: apiKey.updatedAt
+        id: apiKey?._id,
+        name: apiKey?.name,
+        status: apiKey?.status,
+        updatedAt: apiKey?.updatedAt
       });
     } catch (error) {
       console.error('Error al actualizar estado de API key:', error);
@@ -218,11 +250,29 @@ export class ApiKeyController {
         return res.status(400).json({ message: 'ID de API key inválido' });
       }
 
-      const apiKey = await ApiKey.findByIdAndDelete(id);
-
+      // Obtener datos antes de eliminar para auditoría
+      const apiKey = await ApiKey.findById(id);
       if (!apiKey) {
         return res.status(404).json({ message: 'API key no encontrada' });
       }
+
+      await ApiKey.findByIdAndDelete(id);
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'eliminar_api_key',
+        `API Key eliminada: ${apiKey.name}`,
+        'api_key',
+        id,
+        sanitizeDataForAudit({
+          name: apiKey.name,
+          permissions: apiKey.permissions,
+          status: apiKey.status
+        }),
+        undefined,
+        'api_keys'
+      );
 
       res.status(200).json({ message: 'API key eliminada correctamente', id });
     } catch (error) {

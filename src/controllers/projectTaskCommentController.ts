@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { ProjectTaskComment } from '../models/ProjectTaskComment';
 import ProjectTask from '../models/ProjectTask';
 import { Project } from '../models/Project';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 // Obtener todos los comentarios de una tarea
 export const getTaskComments = async (req: Request, res: Response): Promise<void> => {

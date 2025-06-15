@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import Role from '../models/Role';
 import Permission from '../models/Permission';
 import mongoose from 'mongoose';
+import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
 
 export class RoleController {
   /**
@@ -146,6 +147,19 @@ export class RoleController {
       await role.save();
       const populatedRole = await Role.findById(role._id)
         .populate('permissions', 'name description module action isActive');
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'crear_rol',
+        `Rol creado: ${role.name}`,
+        'rol',
+        (role._id as mongoose.Types.ObjectId).toString(),
+        undefined,
+        sanitizeDataForAudit(populatedRole?.toObject()),
+        'roles'
+      );
+
       res.status(201).json(populatedRole);
     } catch (error) {
       console.error('Error creando rol:', error);
@@ -165,9 +179,9 @@ export class RoleController {
         return res.status(400).json({ message: 'ID de rol no válido' });
       }
       
-      // Obtener el rol
-      const role = await Role.findById(roleId);
-      if (!role) {
+      // Obtener el rol anterior para auditoría
+      const previousRole = await Role.findById(roleId).populate('permissions', 'name description module action isActive');
+      if (!previousRole) {
         return res.status(404).json({ message: 'Rol no encontrado' });
       }
       
@@ -215,6 +229,18 @@ export class RoleController {
         },
         { new: true }
       ).populate('permissions', 'name description module action isActive');
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'actualizar_rol',
+        `Rol actualizado: ${updatedRole?.name || previousRole.name}`,
+        'rol',
+        roleId,
+        sanitizeDataForAudit(previousRole.toObject()),
+        sanitizeDataForAudit(updatedRole?.toObject()),
+        'roles'
+      );
       
       res.json(updatedRole);
     } catch (error) {
@@ -233,13 +259,26 @@ export class RoleController {
         return res.status(400).json({ message: 'ID de rol no válido' });
       }
       
-      const role = await Role.findById(roleId);
+      const role = await Role.findById(roleId).populate('permissions', 'name description module action isActive');
       if (!role) {
         return res.status(404).json({ message: 'Rol no encontrado' });
       }
       
       // Eliminar el rol (ahora permitimos eliminar roles del sistema)
       await Role.findByIdAndDelete(roleId);
+
+      // Registrar auditoría
+      await logAuditAction(
+        req,
+        'eliminar_rol',
+        `Rol eliminado: ${role.name}`,
+        'rol',
+        roleId,
+        sanitizeDataForAudit(role.toObject()),
+        undefined,
+        'roles'
+      );
+
       res.json({ message: 'Rol eliminado correctamente' });
     } catch (error) {
       next(error);
