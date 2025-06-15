@@ -439,12 +439,20 @@ export class AutomationController {
    */
   static async submit(req: Request, res: Response) {
     try {
+      console.log('🔄 AutomationController.submit - Inicio');
+      console.log('📝 ID de automatización:', req.params.id);
+      console.log('📄 Datos del formulario:', req.body);
+      console.log('🔐 Headers de autorización:', req.headers.authorization);
+      
       const { id } = req.params;
       const formData = req.body;
 
       const automation = await AutomationService.getById(id);
+      console.log('🤖 Automatización encontrada:', !!automation);
+      console.log('📊 Estado de automatización:', automation?.status);
       
       if (!automation || automation.status !== 'active') {
+        console.log('❌ Automatización no disponible');
         return res.status(400).json({
           success: false,
           message: 'Automatización no disponible'
@@ -497,12 +505,13 @@ export class AutomationController {
         }
       }
 
+      console.log('✅ Formulario procesado exitosamente');
       res.json({
         success: true,
         message: 'Formulario enviado exitosamente'
       });
     } catch (error: any) {
-      console.error('Error al procesar formulario:', error);
+      console.error('❌ Error al procesar formulario:', error);
       res.status(500).json({
         success: false,
         message: 'Error al procesar el formulario'

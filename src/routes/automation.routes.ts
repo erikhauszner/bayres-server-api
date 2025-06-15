@@ -4,15 +4,20 @@ import { authenticateToken, checkPermissions } from '../middleware/auth.middlewa
 
 const router = Router();
 
-// Rutas públicas (para acceder a automatizaciones por nombre e ID)
+// ========================================
+// RUTAS PÚBLICAS (SIN AUTENTICACIÓN)
+// ========================================
+
+// Rutas públicas para acceso externo
 router.get('/public/:name', AutomationController.getByName as RequestHandler);
 router.get('/public/id/:id', AutomationController.getPublic as RequestHandler);
-router.post('/:id/submit', 
-  checkPermissions(['automations:submit']) as RequestHandler,
-  AutomationController.submit as RequestHandler
-);
 
-// Rutas protegidas (requieren autenticación)
+// Endpoint público para webhooks externos (sin autenticación)
+router.post('/:id/submit', AutomationController.submit as RequestHandler);
+
+// ========================================
+// RUTAS PROTEGIDAS (REQUIEREN AUTENTICACIÓN)
+// ========================================
 router.use(authenticateToken);
 
 // CRUD básico
@@ -60,6 +65,12 @@ router.patch('/:id/status',
 router.post('/:id/duplicate', 
   checkPermissions(['automations:duplicate']) as RequestHandler,
   AutomationController.duplicate as RequestHandler
+);
+
+// Endpoint protegido para envíos desde el frontend (si es necesario)
+router.post('/:id/submit-form', 
+  checkPermissions(['automations:submit']) as RequestHandler,
+  AutomationController.submit as RequestHandler
 );
 
 export default router; 
