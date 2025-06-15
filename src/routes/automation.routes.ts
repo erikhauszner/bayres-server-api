@@ -17,6 +17,30 @@ router.get('/public/id/:id', AutomationController.getPublic as RequestHandler);
 // ========================================
 router.use(authenticateToken);
 
+// RUTAS ESPECÍFICAS PRIMERO (importante: antes de /:id genérico)
+// Endpoint protegido para enviar automatizaciones (requiere autenticación)
+router.post('/:id/submit', 
+  checkPermissions(['automations:submit']) as RequestHandler,
+  AutomationController.submit as RequestHandler
+);
+
+// Endpoint alternativo para envíos desde el frontend (compatibilidad)
+router.post('/:id/submit-form', 
+  checkPermissions(['automations:submit']) as RequestHandler,
+  AutomationController.submit as RequestHandler
+);
+
+// Operaciones especiales (también específicas)
+router.patch('/:id/status', 
+  checkPermissions(['automations:activate']) as RequestHandler,
+  AutomationController.changeStatus as RequestHandler
+);
+
+router.post('/:id/duplicate', 
+  checkPermissions(['automations:duplicate']) as RequestHandler,
+  AutomationController.duplicate as RequestHandler
+);
+
 // CRUD básico
 router.post('/', 
   checkPermissions(['automations:create']) as RequestHandler,
@@ -38,6 +62,7 @@ router.get('/active',
   AutomationController.getActive as RequestHandler
 );
 
+// RUTA GENÉRICA AL FINAL (importante: después de rutas específicas)  
 router.get('/:id', 
   checkPermissions(['automations:read']) as RequestHandler,
   AutomationController.getById as RequestHandler
@@ -51,29 +76,6 @@ router.put('/:id',
 router.delete('/:id', 
   checkPermissions(['automations:delete']) as RequestHandler,
   AutomationController.delete as RequestHandler
-);
-
-// Operaciones especiales
-router.patch('/:id/status', 
-  checkPermissions(['automations:activate']) as RequestHandler,
-  AutomationController.changeStatus as RequestHandler
-);
-
-router.post('/:id/duplicate', 
-  checkPermissions(['automations:duplicate']) as RequestHandler,
-  AutomationController.duplicate as RequestHandler
-);
-
-// Endpoint protegido para enviar automatizaciones (requiere autenticación)
-router.post('/:id/submit', 
-  checkPermissions(['automations:submit']) as RequestHandler,
-  AutomationController.submit as RequestHandler
-);
-
-// Endpoint alternativo para envíos desde el frontend (compatibilidad)
-router.post('/:id/submit-form', 
-  checkPermissions(['automations:submit']) as RequestHandler,
-  AutomationController.submit as RequestHandler
 );
 
 export default router; 
