@@ -474,6 +474,7 @@ export class AutomationController {
 
       // Procesar webhook si está configurado
       if (automation.config?.webhookUrl) {
+        console.log('🔗 Enviando webhook a:', automation.config.webhookUrl);
         try {
           const axios = require('axios');
           
@@ -498,11 +499,27 @@ export class AutomationController {
             headers['Authorization'] = `Bearer ${automation.config.apiKey}`;
           }
 
-          await axios.post(automation.config.webhookUrl, payload, { headers });
-        } catch (webhookError) {
-          console.error('Error de webhook:', webhookError);
+          console.log('📤 Payload del webhook:', JSON.stringify(payload, null, 2));
+          console.log('🔧 Headers del webhook:', headers);
+
+          const response = await axios.post(automation.config.webhookUrl, payload, { 
+            headers,
+            timeout: 10000 // 10 segundos timeout
+          });
+          
+          console.log('✅ Webhook enviado exitosamente');
+          console.log('📥 Respuesta del webhook:', response.status, response.statusText);
+        } catch (webhookError: any) {
+          console.error('❌ Error de webhook detallado:');
+          console.error('   URL:', automation.config.webhookUrl);
+          console.error('   Error:', webhookError.message);
+          console.error('   Code:', webhookError.code);
+          console.error('   Response status:', webhookError.response?.status);
+          console.error('   Response data:', webhookError.response?.data);
           // No fallar la respuesta por error de webhook
         }
+      } else {
+        console.log('⚠️ No hay webhook configurado para esta automatización');
       }
 
       console.log('✅ Formulario procesado exitosamente');
