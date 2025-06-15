@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AutomationService } from '../services/automation.service';
 import { logAuditAction, sanitizeDataForAudit } from '../utils/auditUtils';
+import axios from 'axios';
 
 // Interfaz para requests con usuario autenticado
 interface RequestWithUser extends Request {
@@ -476,7 +477,6 @@ export class AutomationController {
       if (automation.config?.webhookUrl) {
         console.log('🔗 Enviando webhook a:', automation.config.webhookUrl);
         try {
-          const axios = require('axios');
           
           let payload = { ...formData };
           

@@ -11,8 +11,8 @@
     "seed:permissions": "ts-node src/scripts/seed-permissions.ts",
     "clean:permissions": "ts-node src/scripts/cleanDuplicatePermissions.ts",
     "check:permissions": "ts-node src/scripts/checkDuplicatePermissionsInRole.ts",
-        "cleanup:sessions": "ts-node src/scripts/cleanup-sessions.ts"
-    },
+    "cleanup:sessions": "ts-node src/scripts/cleanup-sessions.ts"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
@@ -24,6 +24,7 @@
     "@types/morgan": "^1.9.9",
     "@types/multer": "^1.4.12",
     "@types/node-cron": "^3.0.11",
+    "axios": "^1.10.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
