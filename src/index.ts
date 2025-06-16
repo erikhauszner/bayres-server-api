@@ -4,10 +4,10 @@ import path from 'path';
 import http from 'http';
 import app from './app';
 import initializeRoles from './scripts/initializeRoles';
-import { Server as SocketIOServer } from 'socket.io';
 import { CronService } from './services/cronService';
 import { SessionSchedulerService } from './services/session-scheduler.service';
 import { AutoDisconnectService } from './services/AutoDisconnectService';
+import { initializeSocket } from './socket';
 
 // Configuración de variables de entorno
 // Primero intentamos cargar desde .env.local (desarrollo local)
@@ -66,73 +66,14 @@ mongoose.connect(MONGODB_URI)
     const server = http.createServer(app);
 
     // Definir orígenes permitidos según el entorno
-    const productionOrigins = ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com'];
+    const productionOrigins = ['https://panel.bayreshub.com', 'https://api.bayreshub.com', 'https://n8n.bayreshub.com', 'http://n8n.bayreshub.com'];
     const developmentOrigins = ['http://localhost:3001', `http://${HOST}:${PORT}`];
     
     const allowedOrigins = isProduction ? productionOrigins : developmentOrigins;
     console.log('Orígenes CORS permitidos:', allowedOrigins);
 
-    // Configurar Socket.IO con configuración simplificada
-    const io = new SocketIOServer(server, {
-      cors: {
-        origin: allowedOrigins,
-        methods: ["GET", "POST", "OPTIONS"],
-        credentials: true,
-        allowedHeaders: ['Content-Type', 'Authorization']
-      },
-      path: '/socket.io',
-      serveClient: false,
-      transports: ['websocket', 'polling']
-    });
-
-    // Almacenar las conexiones de socket por ID de empleado
-    const employeeSockets = new Map<string, string[]>();
-
-    // Manejar conexiones de socket en el namespace raíz
-    io.on('connection', (socket) => {
-      console.log('Nuevo cliente conectado:', socket.id);
-      
-      // Autenticar al usuario y unirse a su sala personal
-      socket.on('authenticate', (employeeId: string) => {
-        if (!employeeId) return;
-        
-        console.log(`Empleado ${employeeId} autenticado en socket ${socket.id}`);
-        
-        // Unir al socket a la sala del empleado
-        socket.join(`employee:${employeeId}`);
-        
-        // Registrar el socket para este empleado
-        if (!employeeSockets.has(employeeId)) {
-          employeeSockets.set(employeeId, []);
-        }
-        employeeSockets.get(employeeId)?.push(socket.id);
-        
-        // Informar al cliente que la autenticación fue exitosa
-        socket.emit('authenticated', { success: true });
-      });
-      
-      // Manejar desconexiones
-      socket.on('disconnect', () => {
-        console.log('Cliente desconectado:', socket.id);
-        
-        // Eliminar el socket de employeeSockets
-        for (const [employeeId, sockets] of employeeSockets.entries()) {
-          const index = sockets.indexOf(socket.id);
-          if (index !== -1) {
-            sockets.splice(index, 1);
-            if (sockets.length === 0) {
-              employeeSockets.delete(employeeId);
-            }
-            break;
-          }
-        }
-      });
-
-      // Manejar errores en el socket
-      socket.on('error', (error) => {
-        console.error('Error en socket:', error);
-      });
-    });
+    // Inicializar Socket.IO usando el módulo centralizado
+    const io = initializeSocket(server, allowedOrigins);
 
     // Hacer disponible io para otros módulos
     app.set('io', io);

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { NotificationService } from '../services/notification.service';
 import { IEmployee } from '../models/Employee';
 import Employee from '../models/Employee';
-import { io } from '../server'; // Importar io
+import { getIO, isSocketInitialized } from '../socket'; // Importar getIO
 import { logAuditAction } from '../utils/auditUtils';
 
 // Definir tipos para usar en el controlador
@@ -281,24 +281,27 @@ export class NotificationController {
         console.log(`Enviando notificación a usuario específico: ${user_id}, ID: ${result._id}, Título: ${title}`);
         
         // Emitir evento de Socket.IO para notificar al usuario específico
-        io.to(`employee:${user_id}`).emit('new_notification', {
-          notification: {
-            _id: result._id,
-            title,
-            message: description,
-            type,
-            status: 'unread',
-            createdAt: new Date(),
-            variant,
-            action,
-            duration: duration || 5000,
-            data: data || {},
-            // SIEMPRE mostrar como toast para notificaciones externas
-            showAsToast: true,
-            isExternalNotification: shouldForceExternal,
-            isLeadRelated
-          }
-        });
+        if (isSocketInitialized()) {
+          const io = getIO();
+          io.to(`employee:${user_id}`).emit('new_notification', {
+            notification: {
+              _id: result._id,
+              title,
+              message: description,
+              type,
+              status: 'unread',
+              createdAt: new Date(),
+              variant,
+              action,
+              duration: duration || 5000,
+              data: data || {},
+              // SIEMPRE mostrar como toast para notificaciones externas
+              showAsToast: true,
+              isExternalNotification: shouldForceExternal,
+              isLeadRelated
+            }
+          });
+        }
 
         return res.status(201).json({
           success: true,
@@ -322,23 +325,26 @@ export class NotificationController {
       console.log(`Enviando notificación BROADCAST a todos los usuarios, Título: ${title}`);
       
       // Emitir evento de Socket.IO para notificar a todos los usuarios
-      io.emit('new_notification', {
-        notification: {
-          title,
-          message: description,
-          type,
-          status: 'unread',
-          createdAt: new Date(),
-          variant,
-          action,
-          duration: duration || 5000,
-          data: data || {},
-          // SIEMPRE mostrar como toast para notificaciones externas
-          showAsToast: true,
-          isExternalNotification: shouldForceExternal,
-          isLeadRelated
-        }
-      });
+      if (isSocketInitialized()) {
+        const io = getIO();
+        io.emit('new_notification', {
+          notification: {
+            title,
+            message: description,
+            type,
+            status: 'unread',
+            createdAt: new Date(),
+            variant,
+            action,
+            duration: duration || 5000,
+            data: data || {},
+            // SIEMPRE mostrar como toast para notificaciones externas
+            showAsToast: true,
+            isExternalNotification: shouldForceExternal,
+            isLeadRelated
+          }
+        });
+      }
 
       return res.status(201).json({
         success: true,

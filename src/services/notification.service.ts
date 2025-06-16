@@ -1,6 +1,6 @@
 import Employee, { IEmployee } from '../models/Employee';
 import Notification, { INotification } from '../models/Notification';
-import { io } from '../server';
+import { getIO, isSocketInitialized } from '../socket';
 
 type NotificationType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead';
 type EntityType = 'task' | 'client' | 'event' | 'employee' | 'invoice' | 'project' | 'system' | 'lead' | 'other';
@@ -60,7 +60,8 @@ export class NotificationService {
   static sendViaSocket(notification: INotification): void {
     try {
       // Enviar la notificación a la sala del empleado
-      if (io && notification.employeeId) {
+      if (isSocketInitialized() && notification.employeeId) {
+        const io = getIO();
         const room = `employee:${notification.employeeId}`;
         console.log(`Enviando notificación por Socket.IO a la sala ${room}`);
 
