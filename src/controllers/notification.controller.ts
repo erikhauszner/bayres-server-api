@@ -220,9 +220,12 @@ export class NotificationController {
         (title || '').includes('Obteniendo') ||
         (description || '').includes('lead');
       
-      // Forzar que sea considerada externa si está relacionada con leads
+      // TODAS las notificaciones de /external/notifications son externas
       const shouldForceExternal = isExternalNotification || isLeadRelated;
       
+      if (isExternalNotification) {
+        console.log('🌐 NOTIFICACIÓN EXTERNA detectada por ruta /external/notifications');
+      }
       if (isLeadRelated) {
         console.log('🔔 DETECTADA NOTIFICACIÓN DE LEADS, forzando tratamiento como EXTERNA');
       }
